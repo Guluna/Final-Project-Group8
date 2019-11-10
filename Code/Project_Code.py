@@ -79,7 +79,15 @@ df_cleaned["genres"] = new_df["name"]
 
 # 2. converting (production_companies) json column to normal string column
 
-
+print(df_cleaned.columns)
+df_cleaned['production_companies'] = df_cleaned['production_companies'].replace(np.nan,'{}',regex = True)
+df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_companies'].apply(eval))
+df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
+df_cleaned.drop(df_cleaned.iloc[:, 11:37], inplace = True, axis = 1)
+df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
+df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
+df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)
+print(df_cleaned.columns)
 
 
 
