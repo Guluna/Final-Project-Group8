@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
-import json
-from pandas.io.json import json_normalize
+
 
 # reading csv file data
 movie_data_orig = pd.read_csv("movies_metadata.csv")
@@ -23,73 +22,51 @@ df_cleaned.dtypes             # datatype of all columns in the dataframe; (budge
 df_cleaned.describe()           # giving summary statistics of columns with dtype = float64
 # budget column contains alpha-numeric characters, so need to fix it
 df_cleaned['budget'] = df_cleaned['budget'].str.extract('(\d+)', expand=False)   # removing all non-numeric values from budget column
-len(df_cleaned)       # 45466
+
 df_cleaned["budget"] = df_cleaned["budget"].astype(float).fillna(0.0)    # changing budget column from object to float
-df_cleaned.dtypes       # confirming that budget's dtype has changed to float64
-df_cleaned.describe()
+# df_cleaned.dtypes       # confirming that budget's dtype has changed to float64
+# df_cleaned.describe()
 df_cleaned = df_cleaned.loc[df_cleaned['budget'] > 100000]   # subsetting df to only movies with budget greater than $100,000
-len(df_cleaned)     # 8298
 
 df_cleaned = df_cleaned.loc[df_cleaned['revenue'] > 1000]      # subsetting df to only movies with revenue greater than $1000
-len(df_cleaned)      # 5249
-df_cleaned.describe()
+
 
 # creating our target/label column showing status i.e success/flop movie.
 df_cleaned["status"] = df_cleaned["revenue"]/df_cleaned["budget"]
-df_cleaned.describe()
-df_cleaned.dtypes
+# df_cleaned.describe()
+# df_cleaned.dtypes
+
 # Our criteria for success is any value greater than 1 else flop
-df_cleaned["new_status"] = np.nan      # creating a new empty column
-df_cleaned["new_status"] = df_cleaned["new_status"].mask( df_cleaned["status"] > 1, 1)
-df_cleaned["new_status"] = df_cleaned["new_status"].mask( df_cleaned["status"] <= 1, 0)
+df_cleaned["New_status"] = np.nan      # creating a new empty column
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] > 1, 1)
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] <= 1, 0)
 
 
+# # 1. converting (genre) json column to normal string column
 
-
-# 1. converting (genre) json column to normal string column
-
-# the correct JSON format uses double quotes instead of single quotes
-df_cleaned["genres"] = df_cleaned["genres"].str.replace("\'", "\"")
-# converting json column to list
-k = df_cleaned["genres"].apply(lambda row: pd.DataFrame(json.loads(row))).tolist()
-# print(type(k))       <class 'list'>
-# print(k[0])     indices + all ids + all genres in first row
-
-# extracting only the major i.e. where "index=0" genre type for each row
-df_temp = pd.concat(k)    # creating a df on basis of json list
-# df_temp.index        [0, 1, 2, 0, 1, 2, 0, 1, 0, 1, and so on
-new_df = df_temp.loc[df_temp.index.isin([0])]
-
-#???????
-# len(df_cleaned)     # 5249
-# len(new)       # 5238  means there are some missing values in genre column
-# df_cleaned.isnull().sum()      # returns the total # of missing/NaN values in each col of df, surprisingly for genres it is 0
-
-# print(new_df["name"])    confirming the major genre values
-
-# fixing "ValueError: cannot reindex from a duplicate axis"
-df_cleaned = df_cleaned.reset_index(drop=True)
-new_df = new_df.reset_index(drop=True)
-
-# updating genres column with only one major category
-df_cleaned["genres"] = new_df["name"]
-
-
+df_cleaned['genres'] = df_cleaned['genres'].replace(np.nan,'{}',regex = True)
+df_cleaned['genres'] = pd.DataFrame(df_cleaned['genres'].apply(eval))
+# dividing all genres in a cell into separate cols/series, concating it to main df & then dropping the original "genres" column from df
+df_cleaned = pd.concat([df_cleaned.drop(['genres'], axis=1), df_cleaned['genres'].apply(pd.Series)], axis=1)
+# Removing all columns except the major genre type for each movie
+df_cleaned.drop(df_cleaned.iloc[:, 11:18], inplace = True, axis = 1)
+# creating separate series for "id" & "name" and concating it to main df
+df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
+df_cleaned.rename(columns = {'name' : 'Genre'}, inplace = True)   # renaming col
+df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)     # dropping extraneous cols
+print(df_cleaned.columns)
 
 
 # 2. converting (production_companies) json column to normal string column
 
-print(df_cleaned.columns)
 df_cleaned['production_companies'] = df_cleaned['production_companies'].replace(np.nan,'{}',regex = True)
 df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_companies'].apply(eval))
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
-df_cleaned.drop(df_cleaned.iloc[:, 11:37], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 11:36], inplace = True, axis = 1)
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
 df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)
 print(df_cleaned.columns)
-
-
 
 
 # there are many entries where the number of people who voted for a movie are 1, 2 , 3 etc
