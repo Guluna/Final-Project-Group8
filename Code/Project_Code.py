@@ -71,14 +71,21 @@ print(df_cleaned.columns)
 
 # 2. converting (production_companies) json column to normal string column
 
+# Replacing null values with '{}'
 df_cleaned['production_companies'] = df_cleaned['production_companies'].replace(np.nan,'{}',regex = True)
+# Converting Strings to Dictionaries as it have multiple production companies in json format
 df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_companies'].apply(eval))
+# Dividing all production companies into separate cols, concatenating these to the main df and dropping the original 'production companies' col
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
+# Removing all production companies cols except major production company
 df_cleaned.drop(df_cleaned.iloc[:, 11:36], inplace = True, axis = 1)
+# Dividing the main production company col into separate cols to retrieve the name and concatenating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
+# Removing unused columns i.e production company 'id' and 0
 df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)
 print(df_cleaned.columns)
+df_cleaned = df_cleaned[~df_cleaned['Production Company'].isnull()]
 
 
 # there are many entries where the number of people who voted for a movie are 1, 2 , 3 etc
@@ -89,6 +96,31 @@ len(df_cleaned)      # 3763
 df_cleaned.drop_duplicates(inplace = True)
 print(len(df_cleaned)) # 3763
 print(df_cleaned.columns)
+
+
+#
+plt.figure(figsize=(20,12))
+sns.countplot(df_cleaned['vote_average'].sort_values())
+plt.title("Rating Count",fontsize=20)
+plt.show()
+
+# Number of movies per Genre
+plt.figure(figsize=(20,12))
+sns.countplot(df_cleaned['Genre'])
+plt.title("Genre Count",fontsize=20)
+plt.show()
+
+# Correlation heatmap
+df_c = df_cleaned[['budget','revenue','runtime','vote_average','vote_count']]
+f,ax = plt.subplots(figsize=(10, 5))
+sns.heatmap(df_c.corr(), annot=True)
+plt.show()
+
+# Pair Plot
+df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
+sns.set(style = 'ticks')
+sns.pairplot(df_x, hue = 'New_status')
+plt.show()
 
 # Modeling
 #Decision Tree Gini
