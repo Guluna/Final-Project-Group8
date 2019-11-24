@@ -119,10 +119,10 @@ sns.heatmap(df_c.corr(), annot=True)
 plt.show()
 
 # Pair Plot
-df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
-sns.set(style = 'ticks')
-sns.pairplot(df_x, hue = 'New_status')
-plt.show()
+# df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
+# sns.set(style = 'ticks')
+# sns.pairplot(df_x, hue = 'New_status')
+# plt.show()
 
 # Modeling
 #Decision Tree Gini
@@ -254,3 +254,107 @@ print("\n")
 
 print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
 print("\n")
+
+
+
+
+# =================================================================
+# GUI FOR DATASET
+# =================================================================
+
+
+import tkinter
+# creating main window object, method creates a blank window with close, maximize and minimize buttons.
+window = tkinter.Tk()
+
+
+from tkinter import *
+from pandastable import Table, TableModel
+
+class TestApp(Frame):
+    """Basic test frame for the table"""
+    def __init__(self,  my_dataframe):
+        # self.parent = parent
+        self.my_dataframe = my_dataframe
+        Frame.__init__(self)
+        self.main = self.master
+        self.main.geometry('600x400+200+100')
+        self.main.title('Data Set')
+        f = Frame(self.main)
+        f.pack(fill=BOTH,expand=1)
+        df = my_dataframe
+        self.table = pt = Table(f, dataframe=df,
+                                showtoolbar=False, showstatusbar=True)
+        pt.show()
+        return
+
+app = TestApp(movie_data_orig)
+app = TestApp(df_cleaned)
+
+#launch the app
+app.mainloop()
+
+# mainloop() method is an infinite loop used to run the application, wait for an event to occur and process the event till the window is not closed.
+window.mainloop()
+
+
+# =================================================================
+# EDA GRAPHS GUI
+# =================================================================
+
+import matplotlib
+matplotlib.use('TkAgg')
+import numpy as np
+import matplotlib.pyplot as plt
+import tkinter as Tkinter
+
+# Define a bold font:
+BOLD = ('Courier', '24', 'bold')
+
+# Create main application window.
+root = Tkinter.Tk()
+
+# Create a text box explaining the application.
+greeting = Tkinter.Label(text="Data Mining Project - Interface", font=BOLD)
+greeting.pack(side='top')
+
+# Create a frame for variable names and entry boxes for their values.
+frame = Tkinter.Frame(root)
+frame.pack(side='top')
+
+
+# Define a function to create the desired plot.
+def plot_rating(event=None):
+    # # Create the plot.
+    plt.figure(figsize=(20,12))
+    sns.countplot(df_cleaned['vote_average'].sort_values())
+    plt.title("Rating Count", fontsize=20)
+    plt.xlabel('x-axis title goes here')
+    plt.ylabel('x-axis title goes here')
+    plt.show()
+
+def plot_genre(event=None):
+    # Number of movies per Genre
+    plt.figure(figsize=(20,12))
+    sns.countplot(df_cleaned['Genre'])
+    plt.title("Genre Count",fontsize=20)
+    plt.xlabel('x-axis title goes here')
+    plt.ylabel('x-axis title goes here')
+    plt.show()
+
+# Add a button to create the plot.
+MakePlot = Tkinter.Button(root, command=plot_rating, text="Rating Count Plot")
+MakePlot.pack(side='bottom', fill='both')
+
+MakePlot = Tkinter.Button(root, command=plot_genre, text="Genre Count Plot")
+MakePlot.pack(side='bottom', fill='both')
+
+# # Allow pressing <Return> to create plot.
+# root.bind('<Return>', plot_rating)
+
+# # Allow pressing <Esc> to close the window.
+# root.bind('<Escape>', root.destroy)
+
+# Activate the window.
+root.mainloop()
+
