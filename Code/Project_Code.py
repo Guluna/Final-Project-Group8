@@ -69,11 +69,12 @@ df_cleaned['genres'] = pd.DataFrame(df_cleaned['genres'].apply(eval))
 # dividing all genres in a cell into separate cols/series, concating it to main df & then dropping the original "genres" column from df
 df_cleaned = pd.concat([df_cleaned.drop(['genres'], axis=1), df_cleaned['genres'].apply(pd.Series)], axis=1)
 # Removing all columns except the major genre type for each movie
-df_cleaned.drop(df_cleaned.iloc[:, 11:18], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 12:19], inplace = True, axis = 1)
 # creating separate series for "id" & "name" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Genre'}, inplace = True)   # renaming col
-df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)     # dropping extraneous cols
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()] # removing duplicate id column
+df_cleaned.drop(df_cleaned.iloc[:, 11:12], inplace = True, axis = 1)     # dropping extraneous cols
 print(df_cleaned.columns)
 
 
@@ -86,12 +87,13 @@ df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_compani
 # Dividing all production companies into separate cols, concatenating these to the main df and dropping the original 'production companies' col
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
 # Removing all production companies cols except major production company
-df_cleaned.drop(df_cleaned.iloc[:, 11:36], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 12:37], inplace = True, axis = 1)
 # Dividing the main production company col into separate cols to retrieve the name and concatenating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
-# Removing unused columns i.e production company 'id' and 0
-df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()] # removing duplicate id column
+# Removing unused columns i.e 0
+df_cleaned.drop(df_cleaned.iloc[:, 11:12], inplace = True, axis = 1)
 print(df_cleaned.columns)
 df_cleaned = df_cleaned[~df_cleaned['Production Company'].isnull()]
 
@@ -105,6 +107,28 @@ df_cleaned.drop_duplicates(inplace = True)
 print(len(df_cleaned)) # 3763
 print(df_cleaned.columns)
 
+cast = pd.DataFrame(pd.read_csv("credits.csv"))
+print(cast.columns)
+
+# Changing the id column to string in both dataframes to merge
+df_cleaned['id'] = df_cleaned['id'].astype(str)
+cast['id'] = cast['id'].astype(str)
+
+# Merging cast and movie_data_orig on id column
+df_cleaned = pd.merge(df_cleaned, cast, on = 'id', how='left')
+print(df_cleaned.columns)
+print(df_cleaned.head())
+
+
+df_cleaned['cast'] = df_cleaned['cast'].replace(np.nan,'{}',regex = True)
+df_cleaned['cast'] = pd.DataFrame(df_cleaned['cast'].apply(eval))
+df_cleaned = pd.concat([df_cleaned.drop(['cast'], axis=1), df_cleaned['cast'].apply(pd.Series)], axis=1)
+df_cleaned.drop(df_cleaned.iloc[:, 14:237], inplace = True, axis = 1)
+df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
+df_cleaned.rename(columns = {'name' : 'Cast'}, inplace = True)
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()]
+df_cleaned.drop(df_cleaned.iloc[:,12:17], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:,13:15], inplace = True, axis = 1)
 
 #
 plt.figure(figsize=(20,12))
@@ -160,207 +184,207 @@ print("Classification Report: ")
 print(classification_report(y_test,y_pred_gini))
 print("Accuracy : ", accuracy_score(y_test, y_pred_gini) * 100)
 
-# #Decision Tree Entropy
-# # perform training with Entropy.
-# # creating the classifier object
-# clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, max_depth=3, min_samples_leaf=5)
-#
-# # performing training
-# clf_entropy.fit(X_train, y_train)
-#
-# # predicton on test using gini
-# y_pred_entropy = clf_entropy.predict(X_test)
-#
-# print("Classification Report: ")
-# print(classification_report(y_test,y_pred_entropy))
-# print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
-#
-# #Applying SVM Classification
-# # perform training
-# # creating the classifier object
-# clf = SVC(kernel="linear")
-#
-# # performing training
-# clf.fit(X_train, y_train)
-#
-# # predicton on test
-# y_pred_svm = clf.predict(X_test)
-#
-# # calculate metrics
-# print("\n")
-#
-# print("Classification Report: ")
-# print(classification_report(y_test,y_pred_svm))
-# print("\n")
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
-# print("\n")
-#
-# #KNN
-# # standardize the data
-# stdsc = StandardScaler()
-#
-# stdsc.fit(X_train)
-#
-# X_train_std = stdsc.transform(X_train)
-# X_test_std = stdsc.transform(X_test)
-#
-# # perform training
-# # creating the classifier object
-# clf_knn = KNeighborsClassifier(n_neighbors=3)
-#
-# # performing training
-# clf_knn.fit(X_train_std, y_train)
-#
-# #%%-----------------------------------------------------------------------
-# # make predictions
-#
-# # predicton on test
-# y_pred_knn = clf.predict(X_test_std)
-#
-# #%%-----------------------------------------------------------------------
-# # calculate metrics
-#
-# print("\n")
-# print("Classification Report: ")
-# print(classification_report(y_test,y_pred_knn))
-# print("\n")
-#
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
-# print("\n")
-#
-# #Naive Bayese
-# # creating the classifier object
-# clf_nb = GaussianNB()
-#
-# # performing training
-# clf_nb.fit(X_train, y_train)
-#
-# #%%-----------------------------------------------------------------------
-# # make predictions
-#
-# # predicton on test
-# y_pred_nb = clf_nb.predict(X_test)
-#
-# y_pred_nb_score = clf_nb.predict_proba(X_test)
-#
-# #%%-----------------------------------------------------------------------
-# # calculate metrics
-#
-# print("\n")
-#
-# print("Classification Report: ")
-# print(classification_report(y_test,y_pred_nb))
-# print("\n")
-#
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
-# print("\n")
-#
-# print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
-# print("\n")
-#
-#
-#
-#
-# # =================================================================
-# # GUI FOR DATASET
-# # =================================================================
-#
-#
-# import tkinter
-# # creating main window object, method creates a blank window with close, maximize and minimize buttons.
-# window = tkinter.Tk()
-#
-#
-# from tkinter import *
-# from pandastable import Table, TableModel
-#
-# class TestApp(Frame):
-#     """Basic test frame for the table"""
-#     def __init__(self,  my_dataframe):
-#         # self.parent = parent
-#         self.my_dataframe = my_dataframe
-#         Frame.__init__(self)
-#         self.main = self.master
-#         self.main.geometry('600x400+200+100')
-#         self.main.title('Data Set')
-#         f = Frame(self.main)
-#         f.pack(fill=BOTH,expand=1)
-#         df = my_dataframe
-#         self.table = pt = Table(f, dataframe=df,
-#                                 showtoolbar=False, showstatusbar=True)
-#         pt.show()
-#         return
-#
-# app = TestApp(movie_data_orig)
-# app = TestApp(df_cleaned)
-#
-# #launch the app
-# app.mainloop()
-#
-# # mainloop() method is an infinite loop used to run the application, wait for an event to occur and process the event till the window is not closed.
-# window.mainloop()
-#
-#
-# # =================================================================
-# # EDA GRAPHS GUI
-# # =================================================================
-#
-# import matplotlib
-# matplotlib.use('TkAgg')
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import tkinter as Tkinter
-#
-# # Define a bold font:
-# BOLD = ('Courier', '24', 'bold')
-#
-# # Create main application window.
-# root = Tkinter.Tk()
-#
-# # Create a text box explaining the application.
-# greeting = Tkinter.Label(text="Data Mining Project - Interface", font=BOLD)
-# greeting.pack(side='top')
-#
-# # Create a frame for variable names and entry boxes for their values.
-# frame = Tkinter.Frame(root)
-# frame.pack(side='top')
-#
-#
-# # Define a function to create the desired plot.
-# def plot_rating(event=None):
-#     # # Create the plot.
-#     plt.figure(figsize=(20,12))
-#     sns.countplot(df_cleaned['vote_average'].sort_values())
-#     plt.title("Rating Count", fontsize=20)
-#     plt.xlabel('x-axis title goes here')
-#     plt.ylabel('x-axis title goes here')
-#     plt.show()
-#
-# def plot_genre(event=None):
-#     # Number of movies per Genre
-#     plt.figure(figsize=(20,12))
-#     sns.countplot(df_cleaned['Genre'])
-#     plt.title("Genre Count",fontsize=20)
-#     plt.xlabel('x-axis title goes here')
-#     plt.ylabel('x-axis title goes here')
-#     plt.show()
-#
-# # Add a button to create the plot.
-# MakePlot = Tkinter.Button(root, command=plot_rating, text="Rating Count Plot")
-# MakePlot.pack(side='bottom', fill='both')
-#
-# MakePlot = Tkinter.Button(root, command=plot_genre, text="Genre Count Plot")
-# MakePlot.pack(side='bottom', fill='both')
-#
-# # # Allow pressing <Return> to create plot.
-# # root.bind('<Return>', plot_rating)
-#
-# # # Allow pressing <Esc> to close the window.
-# # root.bind('<Escape>', root.destroy)
-#
-# # Activate the window.
-# root.mainloop()
-#
+#Decision Tree Entropy
+# perform training with Entropy.
+# creating the classifier object
+clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, max_depth=3, min_samples_leaf=5)
+
+# performing training
+clf_entropy.fit(X_train, y_train)
+
+# predicton on test using gini
+y_pred_entropy = clf_entropy.predict(X_test)
+
+print("Classification Report: ")
+print(classification_report(y_test,y_pred_entropy))
+print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
+
+#Applying SVM Classification
+# perform training
+# creating the classifier object
+clf = SVC(kernel="linear")
+
+# performing training
+clf.fit(X_train, y_train)
+
+# predicton on test
+y_pred_svm = clf.predict(X_test)
+
+# calculate metrics
+print("\n")
+
+print("Classification Report: ")
+print(classification_report(y_test,y_pred_svm))
+print("\n")
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
+print("\n")
+
+#KNN
+# standardize the data
+stdsc = StandardScaler()
+
+stdsc.fit(X_train)
+
+X_train_std = stdsc.transform(X_train)
+X_test_std = stdsc.transform(X_test)
+
+# perform training
+# creating the classifier object
+clf_knn = KNeighborsClassifier(n_neighbors=3)
+
+# performing training
+clf_knn.fit(X_train_std, y_train)
+
+#%%-----------------------------------------------------------------------
+# make predictions
+
+# predicton on test
+y_pred_knn = clf.predict(X_test_std)
+
+#%%-----------------------------------------------------------------------
+# calculate metrics
+
+print("\n")
+print("Classification Report: ")
+print(classification_report(y_test,y_pred_knn))
+print("\n")
+
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
+print("\n")
+
+#Naive Bayese
+# creating the classifier object
+clf_nb = GaussianNB()
+
+# performing training
+clf_nb.fit(X_train, y_train)
+
+#%%-----------------------------------------------------------------------
+# make predictions
+
+# predicton on test
+y_pred_nb = clf_nb.predict(X_test)
+
+y_pred_nb_score = clf_nb.predict_proba(X_test)
+
+#%%-----------------------------------------------------------------------
+# calculate metrics
+
+print("\n")
+
+print("Classification Report: ")
+print(classification_report(y_test,y_pred_nb))
+print("\n")
+
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
+print("\n")
+
+print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
+print("\n")
+
+
+
+
+# =================================================================
+# GUI FOR DATASET
+# =================================================================
+
+
+import tkinter
+# creating main window object, method creates a blank window with close, maximize and minimize buttons.
+window = tkinter.Tk()
+
+
+from tkinter import *
+from pandastable import Table, TableModel
+
+class TestApp(Frame):
+    """Basic test frame for the table"""
+    def __init__(self,  my_dataframe):
+        # self.parent = parent
+        self.my_dataframe = my_dataframe
+        Frame.__init__(self)
+        self.main = self.master
+        self.main.geometry('600x400+200+100')
+        self.main.title('Data Set')
+        f = Frame(self.main)
+        f.pack(fill=BOTH,expand=1)
+        df = my_dataframe
+        self.table = pt = Table(f, dataframe=df,
+                                showtoolbar=False, showstatusbar=True)
+        pt.show()
+        return
+
+app = TestApp(movie_data_orig)
+app = TestApp(df_cleaned)
+
+#launch the app
+app.mainloop()
+
+# mainloop() method is an infinite loop used to run the application, wait for an event to occur and process the event till the window is not closed.
+window.mainloop()
+
+
+# =================================================================
+# EDA GRAPHS GUI
+# =================================================================
+
+import matplotlib
+matplotlib.use('TkAgg')
+import numpy as np
+import matplotlib.pyplot as plt
+import tkinter as Tkinter
+
+# Define a bold font:
+BOLD = ('Courier', '24', 'bold')
+
+# Create main application window.
+root = Tkinter.Tk()
+
+# Create a text box explaining the application.
+greeting = Tkinter.Label(text="Data Mining Project - Interface", font=BOLD)
+greeting.pack(side='top')
+
+# Create a frame for variable names and entry boxes for their values.
+frame = Tkinter.Frame(root)
+frame.pack(side='top')
+
+
+# Define a function to create the desired plot.
+def plot_rating(event=None):
+    # # Create the plot.
+    plt.figure(figsize=(20,12))
+    sns.countplot(df_cleaned['vote_average'].sort_values())
+    plt.title("Rating Count", fontsize=20)
+    plt.xlabel('x-axis title goes here')
+    plt.ylabel('x-axis title goes here')
+    plt.show()
+
+def plot_genre(event=None):
+    # Number of movies per Genre
+    plt.figure(figsize=(20,12))
+    sns.countplot(df_cleaned['Genre'])
+    plt.title("Genre Count",fontsize=20)
+    plt.xlabel('x-axis title goes here')
+    plt.ylabel('x-axis title goes here')
+    plt.show()
+
+# Add a button to create the plot.
+MakePlot = Tkinter.Button(root, command=plot_rating, text="Rating Count Plot")
+MakePlot.pack(side='bottom', fill='both')
+
+MakePlot = Tkinter.Button(root, command=plot_genre, text="Genre Count Plot")
+MakePlot.pack(side='bottom', fill='both')
+
+# # Allow pressing <Return> to create plot.
+# root.bind('<Return>', plot_rating)
+
+# # Allow pressing <Esc> to close the window.
+# root.bind('<Escape>', root.destroy)
+
+# Activate the window.
+root.mainloop()
+
