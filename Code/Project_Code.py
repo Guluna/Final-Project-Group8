@@ -21,7 +21,7 @@ movie_data_orig = pd.read_csv("movies_metadata.csv")
 print(movie_data_orig.columns)
 
 # removing irrelevant columns
-df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "id", "imdb_id", "original_language",
+df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "imdb_id", "original_language",
                                    "original_title", "overview", "poster_path", "production_countries", "release_date",
                                    "spoken_languages", "status", "tagline", "video" ], axis=1)
 len(df_cleaned)       # 45466
@@ -63,11 +63,12 @@ df_cleaned['genres'] = pd.DataFrame(df_cleaned['genres'].apply(eval))
 # dividing all genres in a cell into separate cols/series, concating it to main df & then dropping the original "genres" column from df
 df_cleaned = pd.concat([df_cleaned.drop(['genres'], axis=1), df_cleaned['genres'].apply(pd.Series)], axis=1)
 # Removing all columns except the major genre type for each movie
-df_cleaned.drop(df_cleaned.iloc[:, 11:18], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 12:19], inplace = True, axis = 1)
 # creating separate series for "id" & "name" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Genre'}, inplace = True)   # renaming col
-df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)     # dropping extraneous cols
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()] # removing duplicate id column
+df_cleaned.drop(df_cleaned.iloc[:, 11:12], inplace = True, axis = 1)     # dropping extraneous cols
 print(df_cleaned.columns)
 
 
@@ -80,12 +81,13 @@ df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_compani
 # Dividing all production companies into separate cols, concatenating these to the main df and dropping the original 'production companies' col
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
 # Removing all production companies cols except major production company
-df_cleaned.drop(df_cleaned.iloc[:, 11:36], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 12:37], inplace = True, axis = 1)
 # Dividing the main production company col into separate cols to retrieve the name and concatenating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
-# Removing unused columns i.e production company 'id' and 0
-df_cleaned.drop(df_cleaned.iloc[:, 10:12], inplace = True, axis = 1)
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()] # removing duplicate id column
+# Removing unused columns i.e 0
+df_cleaned.drop(df_cleaned.iloc[:, 11:12], inplace = True, axis = 1)
 print(df_cleaned.columns)
 df_cleaned = df_cleaned[~df_cleaned['Production Company'].isnull()]
 
@@ -99,6 +101,28 @@ df_cleaned.drop_duplicates(inplace = True)
 print(len(df_cleaned)) # 3763
 print(df_cleaned.columns)
 
+cast = pd.DataFrame(pd.read_csv("credits.csv"))
+print(cast.columns)
+
+# Changing the id column to string in both dataframes to merge
+df_cleaned['id'] = df_cleaned['id'].astype(str)
+cast['id'] = cast['id'].astype(str)
+
+# Merging cast and movie_data_orig on id column
+df_cleaned = pd.merge(df_cleaned, cast, on = 'id', how='left')
+print(df_cleaned.columns)
+print(df_cleaned.head())
+
+
+df_cleaned['cast'] = df_cleaned['cast'].replace(np.nan,'{}',regex = True)
+df_cleaned['cast'] = pd.DataFrame(df_cleaned['cast'].apply(eval))
+df_cleaned = pd.concat([df_cleaned.drop(['cast'], axis=1), df_cleaned['cast'].apply(pd.Series)], axis=1)
+df_cleaned.drop(df_cleaned.iloc[:, 14:237], inplace = True, axis = 1)
+df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
+df_cleaned.rename(columns = {'name' : 'Cast'}, inplace = True)
+df_cleaned = df_cleaned.loc[:,~df_cleaned.columns.duplicated()]
+df_cleaned.drop(df_cleaned.iloc[:,12:17], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:,13:15], inplace = True, axis = 1)
 
 #
 plt.figure(figsize=(20,12))
