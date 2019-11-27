@@ -131,9 +131,9 @@ df_cleaned.drop(df_cleaned.iloc[:,15:19], inplace = True, axis = 1)
 df_cleaned.drop(df_cleaned.iloc[:,16:18], inplace = True, axis = 1)
 
 
-df_cleaned['crew'] = df_cleaned['crew'].replace(np.nan,'{}',regex = True)
-df_cleaned['crew'] = pd.DataFrame(df_cleaned['crew'].apply(eval))
-df_cleaned = pd.concat([df_cleaned.drop(['crew'], axis=1), df_cleaned['crew'].apply(pd.Series)], axis=1)
+#df_cleaned['crew'] = df_cleaned['crew'].replace(np.nan,'{}',regex = True)
+#df_cleaned['crew'] = pd.DataFrame(df_cleaned['crew'].apply(eval))
+#df_cleaned = pd.concat([df_cleaned.drop(['crew'], axis=1), df_cleaned['crew'].apply(pd.Series)], axis=1)
 
 
 #
