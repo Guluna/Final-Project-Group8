@@ -2,16 +2,41 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
+from sklearn.model_selection import train_test_split # Import train_test_split function
+from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import label_binarize
+# Libraries to display decision tree
+from pydotplus import graph_from_dot_data
+from sklearn.tree import export_graphviz
+import webbrowser
+
+#%%-----------------------------------------------------------------------
+import os
+os.environ["PATH"] += os.pathsep + '/Users/amnagul/anaconda3/pkgs/graphviz-2.40.1-hefbbd9a_2/bin/'
+#%%-----------------------------------------------------------------------
+
+# Libraries for GUI
+import sys
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QWidget, QPushButton, QAction, QComboBox, QLabel,
+                             QGridLayout, QCheckBox, QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, QPlainTextEdit)
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import Qt
+from scipy import interp
+from itertools import cycle
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QSizePolicy, QMessageBox
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 
 
@@ -123,12 +148,14 @@ merged_inner.dtypes       # release_date is of object (i.e. string data type) in
 # Removing Duplicates
 merged_inner.drop_duplicates(inplace = True)
 
+merged_inner.to_csv(r"/Users/amnagul/Desktop/Pycharm Projects/Final-Project-Group8/Code/Cleaned_df.csv", index=None, header=True)
+
 # =================================================================
 # EDA
 # =================================================================
 
 
-# #
+
 # plt.figure(figsize=(20,12))
 # sns.countplot(df_cleaned['vote_average'].sort_values())
 # plt.title("Rating Count",fontsize=20)
@@ -145,8 +172,8 @@ merged_inner.drop_duplicates(inplace = True)
 # f,ax = plt.subplots(figsize=(10, 5))
 # sns.heatmap(df_c.corr(), annot=True)
 # plt.show()
-
-# Pair Plot
+#
+# # Pair Plot
 # df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
 # sns.set(style = 'ticks')
 # sns.pairplot(df_x, hue = 'New_status')
@@ -293,8 +320,209 @@ merged_inner.drop_duplicates(inplace = True)
 
 
 
-
-
 # =================================================================
 # GUI
 # =================================================================
+
+
+class CanvasWindow(QMainWindow):
+    #::----------------------------------
+    # Creates a canvas containing the plot for the initial analysis
+    #;;----------------------------------
+    def __init__(self, parent=None):
+        super(CanvasWindow, self).__init__(parent)
+
+        self.left = 200
+        self.top = 200
+        self.Title = 'Distribution'
+        self.width = 500
+        self.height = 500
+        self.initUI()
+
+    def initUI(self):
+
+        self.setWindowTitle(self.Title)
+        self.setStyleSheet(font_size_window)
+
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+        self.m = PlotCanvas(self, width=5, height=4)
+        self.m.move(0, 30)
+
+class App(QMainWindow):
+    #::-------------------------------------------------------
+    # This class creates all the elements of the application
+    #::-------------------------------------------------------
+
+    def __init__(self):
+        super().__init__()
+        self.left = 100
+        self.top = 100
+        self.Title = 'Predicting Movie Success/Failure via ML'
+        self.width = 500
+        self.height = 300
+        self.initUI()
+
+    def initUI(self):
+        #::-------------------------------------------------
+        # Creates the manu and the items
+        #::-------------------------------------------------
+        self.setWindowTitle(self.Title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+        #::-----------------------------
+        # Create the menu bar
+        # and three items for the menu, File, EDA Analysis and ML Models
+        #::-----------------------------
+        mainMenu = self.menuBar()
+        mainMenu.setStyleSheet('background-color: lightblue')
+
+        fileMenu = mainMenu.addMenu('File')
+        EDAMenu = mainMenu.addMenu('EDA Analysis')
+        MLModelMenu = mainMenu.addMenu('ML Models')
+
+        #::--------------------------------------
+        # Exit application
+        # Creates the actions for the fileMenu item
+        #::--------------------------------------
+
+        exitButton = QAction(QIcon('enter.png'), 'Exit', self)
+        exitButton.setShortcut('Ctrl+Q')
+        exitButton.setStatusTip('Exit application')
+        exitButton.triggered.connect(self.close)
+
+        fileMenu.addAction(exitButton)
+
+        #::----------------------------------------
+        # EDA analysis
+        # Creates the actions for the EDA Analysis item
+        # Initial Assesment : Histogram about the level of happiness in 2017
+        # Happiness Final : Presents the correlation between the index of happiness and a feature from the datasets.
+        # Correlation Plot : Correlation plot using all the dims in the datasets
+        #::----------------------------------------
+
+        EDA1Button = QAction(QIcon('analysis.png'),'Initial Assesment', self)
+        EDA1Button.setStatusTip('Presents the initial datasets')
+        EDA1Button.triggered.connect(self.EDA1)
+        EDAMenu.addAction(EDA1Button)
+
+        # EDA2Button = QAction(QIcon('analysis.png'), 'Happiness Final', self)
+        # EDA2Button.setStatusTip('Final Happiness Graph')
+        # EDA2Button.triggered.connect(self.EDA2)
+        # EDAMenu.addAction(EDA2Button)
+
+        EDA4Button = QAction(QIcon('analysis.png'), 'Correlation Plot', self)
+        EDA4Button.setStatusTip('Features Correlation Plot')
+        EDA4Button.triggered.connect(self.EDA4)
+        EDAMenu.addAction(EDA4Button)
+
+        #::--------------------------------------------------
+        # ML Models for prediction
+        # There are two models
+        #       Decision Tree
+        #       Random Forest
+        #::--------------------------------------------------
+        # Decision Tree Model
+        #::--------------------------------------------------
+        MLModel1Button =  QAction(QIcon(), 'Decision Tree Entropy', self)
+        MLModel1Button.setStatusTip('ML algorithm with Entropy ')
+        MLModel1Button.triggered.connect(self.MLDT)
+
+        #::------------------------------------------------------
+        # Random Forest Classifier
+        #::------------------------------------------------------
+        MLModel2Button = QAction(QIcon(), 'Random Forest Classifier', self)
+        MLModel2Button.setStatusTip('Random Forest Classifier ')
+        MLModel2Button.triggered.connect(self.MLRF)
+
+        MLModelMenu.addAction(MLModel1Button)
+        MLModelMenu.addAction(MLModel2Button)
+
+        self.dialogs = list()
+
+    def EDA1(self):
+        #::------------------------------------------------------
+        # Creates the graph for number of movies per Genre
+
+        #::------------------------------------------------------
+        dialog = CanvasWindow(self)
+        dialog.m.plot()
+        dialog.m.ax.hist(df_cleaned['Genre'])
+        dialog.m.ax.set_title('Number of Movies per Genre')
+        dialog.m.ax.set_xlabel("Genres")
+        dialog.m.ax.set_ylabel("Frequency")
+        dialog.m.ax.grid(True)
+        dialog.m.draw()
+        self.dialogs.append(dialog)
+        dialog.show()
+
+
+    # def EDA2(self):
+    #     #::---------------------------------------------------------
+    #     # This function creates an instance of HappinessGraphs class
+    #     # This class creates a graph using the features in the dataset
+    #     # happiness vrs the score of happiness
+    #     #::---------------------------------------------------------
+    #     dialog = HappinessGraphs()
+    #     self.dialogs.append(dialog)
+    #     dialog.show()
+
+    def EDA4(self):
+        #::----------------------------------------------------------
+        # This function creates an instance of the CorrelationPlot class
+        #::----------------------------------------------------------
+        dialog = CorrelationPlot()
+        self.dialogs.append(dialog)
+        dialog.show()
+
+    def MLDT(self):
+        #::-----------------------------------------------------------
+        # This function creates an instance of the DecisionTree class
+        # This class presents a dashboard for a Decision Tree Algorithm
+        # using the happiness dataset
+        #::-----------------------------------------------------------
+        dialog = DecisionTree()
+        self.dialogs.append(dialog)
+        dialog.show()
+
+    def MLRF(self):
+        #::-------------------------------------------------------------
+        # This function creates an instance of the Random Forest Classifier Algorithm
+        # using the happiness dataset
+        #::-------------------------------------------------------------
+        dialog = RandomForest()
+        self.dialogs.append(dialog)
+        dialog.show()
+
+def main():
+    #::-------------------------------------------------
+    # Initiates the application
+    #::-------------------------------------------------
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+    ex = App()
+    ex.show()
+    sys.exit(app.exec_())
+
+
+def movie_prediction():
+    #::--------------------------------------------------
+    # Loads the dataset movies_metadata.csv ( Raw/Original dataset)
+    # Loads the dataset cleaned_df.csv
+    #::--------------------------------------------------
+
+    global final_movie
+    global features_list
+    global class_names
+
+    final_movie = pd.read_csv('Cleaned_df.csv')
+    features_list = df_cleaned.columns.tolist()
+    class_names = ['Success', 'Flop']
+
+
+if __name__ == '__main__':
+    #::------------------------------------
+    # First reads the data then calls for the application
+    #::------------------------------------
+    movie_prediction()
+    main()
