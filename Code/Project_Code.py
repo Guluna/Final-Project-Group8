@@ -25,27 +25,7 @@ df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage",
                                    "spoken_languages", "status", "tagline", "video" ], axis=1)
 
 # print(df_cleaned.columns)   #  'budget', 'genres', 'id', 'imdb_id' 'popularity', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count']
-# df_cleaned.dtypes       # release_date is of object (i.e. string data type) instead of datetime
-
-#::-------------------------------------------------------
-# Problem1 = Python converting movies released in before 1969 to 2059 e.g.
-#::-
-
-# converting release_date column from object to datetime format
-print(df_cleaned["release_date"])
-df_cleaned["release_date"] = pd.to_datetime(df_cleaned["release_date"], format="%m/%d/%y", errors="coerce")   #  errors=‘coerce’, then invalid parsing will be set as NaN
-print(len(df_cleaned.loc[df_cleaned["release_date"].isnull() == True]))      # 168 so we can remove these rows from our df
-df_cleaned.dtypes        # release_date is now datetime64[ns]
-df_cleaned["release_date"].min()    #   Timestamp('1969-01-01 00:00:00')
-print(df_cleaned["release_date"])
-
-
-a = df_cleaned.loc[df_cleaned["title"] == "North by Northwest"]   # release_date should be 1959 but py conv it to 2059. Why ????
-
-#::-------------------------------------------------------
-# Problem1
-#::-
-
+df_cleaned.dtypes       # release_date is of object (i.e. string data type) instead of datetime
 
 # budget column contains alpha-numeric characters, so need to fix it
 df_cleaned['budget'] = df_cleaned['budget'].str.extract('(\d+)', expand=False)   # removing all non-numeric values from budget column
@@ -106,8 +86,9 @@ df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Ser
 # dropping unnecessary cols
 df_cleaned.drop(df_cleaned.iloc[:, 12:14], inplace = True, axis = 1)
 # renaming newly created col
-df_cleaned.rename(columns = {'name' : 'Production Company'}, inplace = True)
-df_cleaned = df_cleaned[~df_cleaned['Production Company'].isnull()]
+df_cleaned.rename(columns = {'name' : 'Production_Company'}, inplace = True)
+df_cleaned = df_cleaned[~df_cleaned['Production_Company'].isnull()]
+len(df_cleaned.Production_Company.unique())
 
 # Adding Director col using imdb files
 dir_id_imdb = pd.read_csv('title_crew.tsv', sep='\t')
@@ -129,12 +110,15 @@ merged_inner = pd.merge(left=merged_inner,right=releaseYr_imdb, left_on='imdb_id
 merged_inner = merged_inner.drop(["tconst"], axis=1)
 cols = merged_inner.columns.tolist()
 # Setting StartYear col beside release_date col
-cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'revenue', 'runtime', 'title', 'status', 'New_status', 'Genre', 'Production Company', 'Director', 'averageRating', 'numVotes']
+cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'revenue', 'runtime', 'title', 'status', 'New_status', 'Genre', 'Production_Company', 'Director', 'averageRating', 'numVotes']
 merged_inner = merged_inner[cols]
+merged_inner["startYear"].min()
 
 len(merged_inner.Director.unique())     # 1173
 
 len(merged_inner)
+merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
+
 
 # Removing Duplicates
 merged_inner.drop_duplicates(inplace = True)
