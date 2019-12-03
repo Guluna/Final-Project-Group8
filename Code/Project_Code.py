@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import shapiro
+
 
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.ensemble import RandomForestClassifier
@@ -50,7 +52,7 @@ import webbrowser
 
 # reading csv file data
 import pandas as pd
-movie_data_orig = pd.read_csv(r"C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\movies_metadata.csv")
+movie_data_orig = pd.read_csv("movies_metadata.csv")
 # print(movie_data_orig)     # [45466 rows x 24 columns]
 
 # removing 12 irrelevant columns
@@ -72,8 +74,8 @@ df_cleaned = df_cleaned.loc[(df_cleaned['budget'] > 100000) & (df_cleaned['reven
 df_cleaned["status"] = df_cleaned["revenue"]/df_cleaned["budget"]
 # Our criteria for success is any value greater than 1 else flop
 df_cleaned["New_status"] = np.nan      # creating a new empty target column called New_Status
-df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] > 1, 1)
-df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] <= 1, 0)
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] > 1, "Success")
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] <= 1, "Flop")
 df_cleaned["New_status"] = df_cleaned["New_status"].astype("category")      # converting from float to categorical datatye
 
 # there are many entries where the number of people who voted for a movie are 1, 2 , 3 etc. They need to be removed otherwise it will create bias
@@ -125,21 +127,21 @@ df_cleaned = df_cleaned[~df_cleaned['Production_Company'].isnull()]
 len(df_cleaned.Production_Company.unique())
 
 # Adding Director col using imdb files
-dir_id_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_crew.tsv', sep='\t')
+dir_id_imdb = pd.read_csv('title_crew.tsv', sep='\t')
 merged_inner = pd.merge(left=df_cleaned,right=dir_id_imdb, left_on='imdb_id', right_on='tconst')
-dir_name_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\name_basics.tsv', sep='\t')
+dir_name_imdb = pd.read_csv('name_basics.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=dir_name_imdb, left_on='directors', right_on='nconst')
 merged_inner = merged_inner.drop(["tconst", "directors", "nconst"], axis=1)     # removing irrelevant cols
 merged_inner.rename(columns = {'primaryName' : 'Director'}, inplace = True)
 
 
 # Adding Avg_ratings & Total votes cols using imdb files
-ratings_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_ratings.tsv', sep='\t')
+ratings_imdb = pd.read_csv('title_ratings.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=ratings_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst", "vote_average", "vote_count"], axis=1)     # removing old vote_avg/count cols
 
 # Adding Movie release year column from imdb file
-releaseYr_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_year.tsv', sep='\t')
+releaseYr_imdb = pd.read_csv('title_year.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=releaseYr_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst"], axis=1)
 cols = merged_inner.columns.tolist()
@@ -150,45 +152,137 @@ merged_inner["startYear"].min()
 
 len(merged_inner.Director.unique())     # 1173
 
-len(merged_inner)
+
+
+
+
+# Madhuri start
+
+
+# #Extracting Month from release date
+# df_cleaned['release_date_temp'] = pd.to_datetime(df_cleaned['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
+# df_cleaned['release_month'] = pd.to_datetime(df_cleaned['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
+# #df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
+# df_cleaned['release_month'] = df_cleaned['release_month'].astype('category')
+# print(df_cleaned.dtypes)
+#
+# df_cleaned = df_cleaned.drop(['release_date_temp'], axis=1)
+
+
+# Madhuri end
+
+
+# finding missing values
+# a = merged_inner.isnull().sum()           # returns 0 for each column meaning no missing values
+
 merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
+merged_inner['release_date'] =  pd.to_datetime(merged_inner['release_date'])    # converting release_date to datetime object
+merged_inner['startYear'] = merged_inner['startYear'].astype(str).astype(int)     # converting startYear to int instead of object
 
-#Extracting Month from release date
-df_cleaned['release_date_temp'] = pd.to_datetime(df_cleaned['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-df_cleaned['release_month'] = pd.to_datetime(df_cleaned['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
-#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-df_cleaned['release_month'] = df_cleaned['release_month'].astype('category')
-print(df_cleaned.dtypes)
-
-df_cleaned = df_cleaned.drop(['release_date_temp'], axis=1)
+len(merged_inner)    # 2222
 
 # Removing Duplicates
-merged_inner.drop_duplicates(inplace = True)
-
-merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
+merged_inner.drop_duplicates(inplace = True)     # no duplicates btw
+#
+# merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
 
 # =================================================================
 # EDA
 # =================================================================
 
+summary = merged_inner.describe()
+
+# dependent variable
+ax = sns.countplot(merged_inner["New_status"])
+ax.set(xlabel ='Labels', ylabel ='Frequency')
+plt.title("Target Variable",fontsize=20)
+plt.show()
 
 
-# plt.figure(figsize=(20,12))
-# sns.countplot(df_cleaned['vote_average'].sort_values())
-# plt.title("Rating Count",fontsize=20)
-# plt.show()
-#
-# # Number of movies per Genre
-# plt.figure(figsize=(20,12))
-# sns.countplot(df_cleaned['Genre'])
-# plt.title("Genre Count",fontsize=20)
-# plt.show()
-#
-# # Correlation heatmap
-# df_c = df_cleaned[['budget','revenue','runtime','vote_average','vote_count']]
-# f,ax = plt.subplots(figsize=(10, 5))
-# sns.heatmap(df_c.corr(), annot=True)
-# plt.show()
+# status column
+max_profit = merged_inner["status"].max()    # 653 times
+max_profit_movie = merged_inner.loc[merged_inner['status'] == max_profit]   # The way of the dragon (director Bruce Lee)
+
+ax = sns.distplot(merged_inner["status"], bins=500, kde=False)
+# control x and y limits
+ax.set(xlabel ='Ratio', ylabel ='Frequency')
+plt.title("Revenue/Budget Ratio",fontsize=20)
+plt.ylim(0, 700)
+plt.xlim(-1, 50)
+plt.show()
+
+# Getting "Not Normal results" p<0.05
+# stat, p = shapiro(merged_inner["status"])
+# print('Statistics=%.3f, p=%.3f' % (stat, p))
+
+#1.  independent variable Year
+merged_inner["startYear"].min()     # 1921
+merged_inner["startYear"].max()     # 2017
+
+decades = []
+for each in merged_inner["startYear"]:
+    decade = int(np.floor(each / 10) * 10)
+    decades.append(decade)
+
+ax = sns.countplot(decades)
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+ax.set(xlabel ='Decades', ylabel ='Frequency')
+plt.title("Movie Count by Decades",fontsize=20)
+plt.show()
+
+
+# 2. independent variable Runtime
+ax = sns.distplot(merged_inner["runtime"])
+ax.set(xlabel ='Duration in Minutes', ylabel ='Frequency')
+plt.title("Movie Runtime",fontsize=20)
+plt.show()
+
+
+# 3. independent variable Vote Average
+ax = sns.distplot(merged_inner["averageRating"])
+ax.set(xlabel ='Average Rating of a movie', ylabel ='Frequency')
+plt.title("Movie Rating",fontsize=20)
+plt.show()
+
+max_rating_movie = merged_inner.loc[merged_inner['averageRating'] == 9.3]   # The Shawshank Redemption
+
+# 4. independent variable Vote Count
+ax = sns.distplot(merged_inner["numVotes"])
+ax.set(xlabel ='Vote Distribution', ylabel ='Frequency')
+plt.title("Vote Count",fontsize=20)
+plt.show()
+
+max_vote_movie = merged_inner.loc[merged_inner['numVotes'] == 2162821]   # The Shawshank Redemption
+
+# 5. Number of movies per Genre
+# a = merged_inner["Genre"].unique()    # 18
+ax = sns.countplot(merged_inner["Genre"])
+ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+ax.set(xlabel ='Genre', ylabel ='Frequency')
+plt.title("Movie Count by Genre",fontsize=20)
+plt.show()
+
+
+# 6. Movie Budget
+ax = sns.distplot(merged_inner["budget"])
+# ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
+ax.set(xlabel ='Budget', ylabel ='Frequency')
+xlabels = ['{:,.2f}'.format(x) + 'M' for x in ax.get_xticks()/1000000]
+ax.set_xticklabels(xlabels)
+plt.title("Movie Budget",fontsize=20)
+plt.show()
+
+
+# Correlation heatmap bw numerical cols
+num_cols = merged_inner[['budget', 'startYear', 'revenue', 'runtime', 'status', 'averageRating', 'numVotes']]
+# removing redundant upper half of heat map
+mask = np.zeros(num_cols.corr().shape, dtype=bool)
+mask[np.triu_indices(len(mask))] = True
+sns.heatmap(num_cols.corr(), annot=True, vmin = -1, vmax = 1, center = 0, cmap = 'coolwarm', mask = mask)
+plt.show()
+
+
+
 #
 # # Pair Plot
 # df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
@@ -198,176 +292,176 @@ merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
 
 
 
-# =================================================================
-# Modeling
-# =================================================================
-
-# Decision Tree Gini
-#split the dataset into input and target variables
-
-X = df_cleaned.loc[:,['runtime','vote_average','Genre','Production_Company','release_month']]  #
-y = df_cleaned.loc[:,['New_status']]
-
-scaler = MinMaxScaler()
-X.loc[:,['runtime','vote_average']]= scaler.fit_transform(X.loc[:,['runtime','vote_average']])
-
-# encloding the class with sklearn's LabelEncoder
-le = LabelEncoder()
-
-# fit and transform the class
-y = le.fit_transform(y)
-X = pd.get_dummies(X)
-
-# split the dataset into train and test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
-
-# perform training with giniIndex.
-# creating the classifier object
-clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
-
-# performing training
-clf_gini.fit(X_train, y_train)
-
-# predicton on test using gini
-y_pred_gini = clf_gini.predict(X_test)
-
-print("Classification Report For DT Gini: ")
-print(classification_report(y_test,y_pred_gini))
-print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
-
-#Decision Tree Entropy
-# perform training with Entropy.
-# creating the classifier object
-clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
-
-# performing training
-clf_entropy.fit(X_train, y_train)
-
-# predicton on test using gini
-y_pred_entropy = clf_entropy.predict(X_test)
-
-print("Classification Report for DT Entropy: ")
-print(classification_report(y_test,y_pred_entropy.ravel()))
-print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
-
-
-#Random Forest
-# specify random forest classifier
-clf_rf = RandomForestClassifier(n_estimators=100)
-
-# perform training
-clf_rf.fit(X_train, y_train)
-
-# predicton on test using all features
-y_pred_rf = clf_rf.predict(X_test)
-y_pred_score = clf_rf.predict_proba(X_test)
-
-print("Classification Report for DT Entropy: ")
-print(classification_report(y_test,y_pred_rf))
-print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
-
-#Applying SVM Classification
-# perform training
-# creating the classifier object
-clf = SVC(kernel="linear")
-
-# performing training
-clf.fit(X_train, y_train)
-
-# predicton on test
-y_pred_svm = clf.predict(X_test)
-
-# calculate metrics
-print("\n")
-
-print("Classification Report for SVM:")
-print(classification_report(y_test,y_pred_svm))
-print("\n")
-
-print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
-print("\n")
-
-#KNN
-# standardize the data
-stdsc = StandardScaler()
-
-stdsc.fit(X_train)
-
-X_train_std = stdsc.transform(X_train)
-X_test_std = stdsc.transform(X_test)
-
-# perform training
-# creating the classifier object
-clf_knn = KNeighborsClassifier(n_neighbors=3)
-
-# performing training
-clf_knn.fit(X_train_std, y_train)
-
-#%%-----------------------------------------------------------------------
-# make predictions
-
-# predicton on test
-y_pred_knn = clf.predict(X_test_std)
-
-#%%-----------------------------------------------------------------------
-# calculate metrics
-
-print("\n")
-print("Classification Report for KNN: ")
-print(classification_report(y_test,y_pred_knn))
-print("\n")
-
-
-print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
-print("\n")
-
-#Naive Bayese
-# creating the classifier object
-clf_nb = GaussianNB()
-
-# performing training
-clf_nb.fit(X_train, y_train)
-
-#%%-----------------------------------------------------------------------
-# make predictions
-
-# predicton on test
-y_pred_nb = clf_nb.predict(X_test)
-
-y_pred_nb_score = clf_nb.predict_proba(X_test)
-
-#%%-----------------------------------------------------------------------
-# calculate metrics
-
-print("\n")
-
-print("Classification Report for NB: ")
-print(classification_report(y_test,y_pred_nb))
-print("\n")
-
-
-print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
-print("\n")
-
-# print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
+# # =================================================================
+# # Modeling
+# # =================================================================
+#
+# # Decision Tree Gini
+# #split the dataset into input and target variables
+#
+# X = df_cleaned.loc[:,['runtime','vote_average','Genre','Production_Company','release_month']]  #
+# y = df_cleaned.loc[:,['New_status']]
+#
+# scaler = MinMaxScaler()
+# X.loc[:,['runtime','vote_average']]= scaler.fit_transform(X.loc[:,['runtime','vote_average']])
+#
+# # encloding the class with sklearn's LabelEncoder
+# le = LabelEncoder()
+#
+# # fit and transform the class
+# y = le.fit_transform(y)
+# X = pd.get_dummies(X)
+#
+# # split the dataset into train and test
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
+#
+# # perform training with giniIndex.
+# # creating the classifier object
+# clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
+#
+# # performing training
+# clf_gini.fit(X_train, y_train)
+#
+# # predicton on test using gini
+# y_pred_gini = clf_gini.predict(X_test)
+#
+# print("Classification Report For DT Gini: ")
+# print(classification_report(y_test,y_pred_gini))
+# print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
+#
+# #Decision Tree Entropy
+# # perform training with Entropy.
+# # creating the classifier object
+# clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
+#
+# # performing training
+# clf_entropy.fit(X_train, y_train)
+#
+# # predicton on test using gini
+# y_pred_entropy = clf_entropy.predict(X_test)
+#
+# print("Classification Report for DT Entropy: ")
+# print(classification_report(y_test,y_pred_entropy.ravel()))
+# print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
+#
+#
+# #Random Forest
+# # specify random forest classifier
+# clf_rf = RandomForestClassifier(n_estimators=100)
+#
+# # perform training
+# clf_rf.fit(X_train, y_train)
+#
+# # predicton on test using all features
+# y_pred_rf = clf_rf.predict(X_test)
+# y_pred_score = clf_rf.predict_proba(X_test)
+#
+# print("Classification Report for DT Entropy: ")
+# print(classification_report(y_test,y_pred_rf))
+# print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
+#
+# #Applying SVM Classification
+# # perform training
+# # creating the classifier object
+# clf = SVC(kernel="linear")
+#
+# # performing training
+# clf.fit(X_train, y_train)
+#
+# # predicton on test
+# y_pred_svm = clf.predict(X_test)
+#
+# # calculate metrics
 # print("\n")
-
-#Ensembling
-final_pred = np.array([])
-for i in range(0,len(X_test)):
-    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
-
-print("*"*50)
-print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
-print("Accuracy DT Entropy: ", accuracy_score(y_test, y_pred_entropy) * 100)
-print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
-print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
-print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
-print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
-print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
-
-print(y_pred_score)
-print("*"*50)
+#
+# print("Classification Report for SVM:")
+# print(classification_report(y_test,y_pred_svm))
+# print("\n")
+#
+# print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
+# print("\n")
+#
+# #KNN
+# # standardize the data
+# stdsc = StandardScaler()
+#
+# stdsc.fit(X_train)
+#
+# X_train_std = stdsc.transform(X_train)
+# X_test_std = stdsc.transform(X_test)
+#
+# # perform training
+# # creating the classifier object
+# clf_knn = KNeighborsClassifier(n_neighbors=3)
+#
+# # performing training
+# clf_knn.fit(X_train_std, y_train)
+#
+# #%%-----------------------------------------------------------------------
+# # make predictions
+#
+# # predicton on test
+# y_pred_knn = clf.predict(X_test_std)
+#
+# #%%-----------------------------------------------------------------------
+# # calculate metrics
+#
+# print("\n")
+# print("Classification Report for KNN: ")
+# print(classification_report(y_test,y_pred_knn))
+# print("\n")
+#
+#
+# print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
+# print("\n")
+#
+# #Naive Bayese
+# # creating the classifier object
+# clf_nb = GaussianNB()
+#
+# # performing training
+# clf_nb.fit(X_train, y_train)
+#
+# #%%-----------------------------------------------------------------------
+# # make predictions
+#
+# # predicton on test
+# y_pred_nb = clf_nb.predict(X_test)
+#
+# y_pred_nb_score = clf_nb.predict_proba(X_test)
+#
+# #%%-----------------------------------------------------------------------
+# # calculate metrics
+#
+# print("\n")
+#
+# print("Classification Report for NB: ")
+# print(classification_report(y_test,y_pred_nb))
+# print("\n")
+#
+#
+# print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
+# print("\n")
+#
+# # print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
+# # print("\n")
+#
+# #Ensembling
+# final_pred = np.array([])
+# for i in range(0,len(X_test)):
+#     final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
+#
+# print("*"*50)
+# print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
+# print("Accuracy DT Entropy: ", accuracy_score(y_test, y_pred_entropy) * 100)
+# print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
+# print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
+# print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
+# print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
+# print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
+#
+# print(y_pred_score)
+# print("*"*50)
 
 
 # =================================================================
