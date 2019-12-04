@@ -295,7 +295,7 @@ plt.show()
 
 # Spliting and encoding data
 # split the dataset into input and target variables
-
+print("original data : ", len(merged_inner))
 X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month', 'popularity']]  #
 y = merged_inner.loc[:,['New_status']]
 
