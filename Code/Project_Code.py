@@ -50,7 +50,7 @@ import webbrowser
 
 # reading csv file data
 import pandas as pd
-movie_data_orig = pd.read_csv(r"C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\movies_metadata.csv")
+movie_data_orig = pd.read_csv('movies_metadata.csv')
 # print(movie_data_orig)     # [45466 rows x 24 columns]
 
 # removing 12 irrelevant columns
@@ -125,21 +125,21 @@ df_cleaned = df_cleaned[~df_cleaned['Production_Company'].isnull()]
 len(df_cleaned.Production_Company.unique())
 
 # Adding Director col using imdb files
-dir_id_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_crew.tsv', sep='\t')
+dir_id_imdb = pd.read_csv('title_crew.tsv', sep='\t')
 merged_inner = pd.merge(left=df_cleaned,right=dir_id_imdb, left_on='imdb_id', right_on='tconst')
-dir_name_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\name_basics.tsv', sep='\t')
+dir_name_imdb = pd.read_csv('name_basics.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=dir_name_imdb, left_on='directors', right_on='nconst')
 merged_inner = merged_inner.drop(["tconst", "directors", "nconst"], axis=1)     # removing irrelevant cols
 merged_inner.rename(columns = {'primaryName' : 'Director'}, inplace = True)
 
 
 # Adding Avg_ratings & Total votes cols using imdb files
-ratings_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_ratings.tsv', sep='\t')
+ratings_imdb = pd.read_csv('title_ratings.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=ratings_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst", "vote_average", "vote_count"], axis=1)     # removing old vote_avg/count cols
 
 # Adding Movie release year column from imdb file
-releaseYr_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\Downloads\Final-Project-Group8-master\Final-Project-Group8-master\Code\title_year.tsv', sep='\t')
+releaseYr_imdb = pd.read_csv('title_year.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=releaseYr_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst"], axis=1)
 cols = merged_inner.columns.tolist()
@@ -154,13 +154,13 @@ len(merged_inner)
 merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
 
 #Extracting Month from release date
-df_cleaned['release_date_temp'] = pd.to_datetime(df_cleaned['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-df_cleaned['release_month'] = pd.to_datetime(df_cleaned['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
+merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
+merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
 #df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-df_cleaned['release_month'] = df_cleaned['release_month'].astype('category')
-print(df_cleaned.dtypes)
+merged_inner['release_month'] = merged_inner['release_month'].astype('category')
+print(merged_inner.dtypes)
 
-df_cleaned = df_cleaned.drop(['release_date_temp'], axis=1)
+merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
 
 # Removing Duplicates
 merged_inner.drop_duplicates(inplace = True)
@@ -170,8 +170,6 @@ merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
 # =================================================================
 # EDA
 # =================================================================
-
-
 
 # plt.figure(figsize=(20,12))
 # sns.countplot(df_cleaned['vote_average'].sort_values())
@@ -185,8 +183,8 @@ merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
 # plt.show()
 #
 # # Correlation heatmap
-# df_c = df_cleaned[['budget','revenue','runtime','vote_average','vote_count']]
-# f,ax = plt.subplots(figsize=(10, 5))
+# df_c = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','status']]
+# f,ax = plt.subplots(figsize=(10,5))
 # sns.heatmap(df_c.corr(), annot=True)
 # plt.show()
 #
@@ -202,24 +200,27 @@ merged_inner.to_csv(r"Cleaned_df.csv", index=None, header=True)
 # Modeling
 # =================================================================
 
-# Decision Tree Gini
+#Spliting and encoding data
 #split the dataset into input and target variables
 
-X = df_cleaned.loc[:,['runtime','vote_average','Genre','Production_Company','release_month']]  #
-y = df_cleaned.loc[:,['New_status']]
+X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month']]  #
+y = merged_inner.loc[:,['New_status']]
 
 scaler = MinMaxScaler()
-X.loc[:,['runtime','vote_average']]= scaler.fit_transform(X.loc[:,['runtime','vote_average']])
+X.loc[:,['runtime','averageRating','budget']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget']])
 
 # encloding the class with sklearn's LabelEncoder
 le = LabelEncoder()
+
+
+# Decision Tree Gini
 
 # fit and transform the class
 y = le.fit_transform(y)
 X = pd.get_dummies(X)
 
 # split the dataset into train and test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=100, stratify=y)
 
 # perform training with giniIndex.
 # creating the classifier object
