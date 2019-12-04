@@ -308,21 +308,17 @@ le = LabelEncoder()
 y = le.fit_transform(y)
 X = pd.get_dummies(X)
 
-print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
-# Over sampling
-# RandomOverSampler (with random_state=0)
-ros = RandomOverSampler(random_state=0)
-X, y = ros.fit_sample(X, y)
-
-print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
 
 # split the dataset into train and test
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
-# print("X train: ", len(X_train))
-# print("y train: ", len(y_train))
-# print("X test: ", len(X_test))
-# print("y test: ", len(y_train))
+#print("X train: ", len(X_train))
 
+# Over sampling
+# RandomOverSampler (with random_state=0)
+ros = RandomOverSampler(random_state=0)
+X_train, y_train = ros.fit_sample(X_train, y_train)
+print("after over sam X : ", len(X_train))
+print("after over sam y : ", len(y_train))
 
 # Decision Tree Gini
 # perform training with giniIndex.
@@ -371,7 +367,7 @@ print(classification_report(y_test,y_pred_rf))
 print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
 
 #Applying ADA Boosting
-classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=10,random_state=seed),n_estimators=100,random_state=seed)
+classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=100,random_state=seed),n_estimators=100,random_state=seed)
 classifier.fit(X_train, y_train)
 
 # predicton on test using all features
