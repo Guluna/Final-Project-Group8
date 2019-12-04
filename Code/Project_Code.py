@@ -15,9 +15,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from imblearn.over_sampling import RandomOverSampler #For over sampling
-from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+from sklearn import metrics
+import sklearn.metrics as metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
+from sklearn.metrics.classification import cohen_kappa_score
 from statistics import mode
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
@@ -25,6 +27,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import label_binarize
+
 # Libraries to display decision tree
 from pydotplus import graph_from_dot_data
 from sklearn.tree import export_graphviz
@@ -50,7 +53,8 @@ import webbrowser
 # from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 # from matplotlib.figure import Figure
 
-
+#set seed
+seed = 100
 
 # reading csv file data
 import pandas as pd
@@ -313,12 +317,17 @@ X, y = ros.fit_sample(X, y)
 print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
 
 # split the dataset into train and test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=100, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
+# print("X train: ", len(X_train))
+# print("y train: ", len(y_train))
+# print("X test: ", len(X_test))
+# print("y test: ", len(y_train))
+
 
 # Decision Tree Gini
 # perform training with giniIndex.
 # creating the classifier object
-clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
+clf_gini = DecisionTreeClassifier(criterion="gini", random_state=seed, min_samples_leaf=5)
 
 # performing training
 clf_gini.fit(X_train, y_train)
@@ -333,7 +342,7 @@ print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
 #Decision Tree Entropy
 # perform training with Entropy.
 # creating the classifier object
-clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
+clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=seed, min_samples_leaf=5)
 
 # performing training
 clf_entropy.fit(X_train, y_train)
@@ -348,7 +357,7 @@ print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
 
 #Random Forest
 # specify random forest classifier
-clf_rf = RandomForestClassifier(n_estimators=100)
+clf_rf = RandomForestClassifier(n_estimators=100,random_state=seed)
 
 # perform training
 clf_rf.fit(X_train, y_train)
@@ -362,12 +371,11 @@ print(classification_report(y_test,y_pred_rf))
 print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
 
 #Applying ADA Boosting
-classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=10),n_estimators=100)
+classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=10,random_state=seed),n_estimators=100,random_state=seed)
 classifier.fit(X_train, y_train)
 
 # predicton on test using all features
 y_pred_boost = classifier.predict(X_test)
-y_pred_score = classifier.predict_proba(X_test)
 
 print("Classification Report for boosting: ")
 print(classification_report(y_test,y_pred_boost))
@@ -453,12 +461,8 @@ print("Classification Report for NB: ")
 print(classification_report(y_test,y_pred_nb))
 print("\n")
 
-
 print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
 print("\n")
-
-# print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
-# print("\n")
 
 #Ensembling
 final_pred = np.array([])
@@ -472,9 +476,50 @@ print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
 print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
 print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
 print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
-print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
+print("Accuracy Bagging with Mode method: ", accuracy_score(y_test, final_pred) * 100)
 print("Accuracy ADA: ", accuracy_score(y_test, y_pred_boost) * 100)
 print("*"*50)
+
+#Printing results for our best model
+print("ROC_AUC : ", roc_auc_score(y_test, y_pred_boost) * 100)
+print("Accuracy K: ", cohen_kappa_score(y_test, y_pred_boost)* 100)
+
+# ROC Graph
+y_pred_score = classifier.predict_proba(X_test)
+preds = y_pred_score[:,1]
+fpr, tpr, threshold = metrics.roc_curve(y_test, preds)
+roc_auc = metrics.auc(fpr, tpr)
+
+# method I: plt
+import matplotlib.pyplot as plt
+plt.title('Receiver Operating Characteristic')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+# confusion matrix for AdaBoosting
+conf_matrix = confusion_matrix(y_test, y_pred_boost)
+class_names = merged_inner['New_status'].unique()
+
+df_cm = pd.DataFrame(conf_matrix, index=class_names, columns=class_names )
+
+plt.figure(figsize=(5,5))
+
+hm = sns.heatmap(df_cm, cbar=False, annot=True, square=True, fmt='d', annot_kws={'size': 20}, yticklabels=df_cm.columns, xticklabels=df_cm.columns)
+
+hm.yaxis.set_ticklabels(hm.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=20)
+hm.xaxis.set_ticklabels(hm.xaxis.get_ticklabels(), rotation=0, ha='right', fontsize=20)
+print("aaa")
+plt.ylabel('True label',fontsize=20)
+plt.xlabel('Predicted label',fontsize=20)
+plt.title("Confusion Metrix AdaBoost Model")
+plt.tight_layout()
+plt.show()
 
 
 # =================================================================
