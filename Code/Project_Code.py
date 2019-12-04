@@ -52,7 +52,7 @@ import webbrowser
 
 # reading csv file data
 import pandas as pd
-movie_data_orig = pd.read_csv("movies_metadata.csv")
+movie_data_orig = pd.read_csv('movies_metadata.csv')
 # print(movie_data_orig)     # [45466 rows x 24 columns]
 
 # removing 12 irrelevant columns
@@ -74,8 +74,8 @@ df_cleaned = df_cleaned.loc[(df_cleaned['budget'] > 100000) & (df_cleaned['reven
 df_cleaned["status"] = df_cleaned["revenue"]/df_cleaned["budget"]
 # Our criteria for success is any value greater than 1 else flop
 df_cleaned["New_status"] = np.nan      # creating a new empty target column called New_Status
-df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] > 1, "Success")
-df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] <= 1, "Flop")
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] > 1, 1)
+df_cleaned["New_status"] = df_cleaned["New_status"].mask( df_cleaned["status"] <= 1, 0)
 df_cleaned["New_status"] = df_cleaned["New_status"].astype("category")      # converting from float to categorical datatye
 
 # there are many entries where the number of people who voted for a movie are 1, 2 , 3 etc. They need to be removed otherwise it will create bias
@@ -178,6 +178,15 @@ len(merged_inner.Director.unique())     # 1173
 merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
 merged_inner['release_date'] =  pd.to_datetime(merged_inner['release_date'])    # converting release_date to datetime object
 merged_inner['startYear'] = merged_inner['startYear'].astype(str).astype(int)     # converting startYear to int instead of object
+
+#Extracting Month from release date
+merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
+merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
+#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
+merged_inner['release_month'] = merged_inner['release_month'].astype('category')
+print(merged_inner.dtypes)
+
+merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
 
 len(merged_inner)    # 2222
 
@@ -292,176 +301,179 @@ plt.show()
 
 
 
-# # =================================================================
-# # Modeling
-# # =================================================================
-#
-# # Decision Tree Gini
-# #split the dataset into input and target variables
-#
-# X = df_cleaned.loc[:,['runtime','vote_average','Genre','Production_Company','release_month']]  #
-# y = df_cleaned.loc[:,['New_status']]
-#
-# scaler = MinMaxScaler()
-# X.loc[:,['runtime','vote_average']]= scaler.fit_transform(X.loc[:,['runtime','vote_average']])
-#
-# # encloding the class with sklearn's LabelEncoder
-# le = LabelEncoder()
-#
-# # fit and transform the class
-# y = le.fit_transform(y)
-# X = pd.get_dummies(X)
-#
-# # split the dataset into train and test
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=100)
-#
-# # perform training with giniIndex.
-# # creating the classifier object
-# clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
-#
-# # performing training
-# clf_gini.fit(X_train, y_train)
-#
-# # predicton on test using gini
-# y_pred_gini = clf_gini.predict(X_test)
-#
-# print("Classification Report For DT Gini: ")
-# print(classification_report(y_test,y_pred_gini))
-# print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
-#
-# #Decision Tree Entropy
-# # perform training with Entropy.
-# # creating the classifier object
-# clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
-#
-# # performing training
-# clf_entropy.fit(X_train, y_train)
-#
-# # predicton on test using gini
-# y_pred_entropy = clf_entropy.predict(X_test)
-#
-# print("Classification Report for DT Entropy: ")
-# print(classification_report(y_test,y_pred_entropy.ravel()))
-# print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
-#
-#
-# #Random Forest
-# # specify random forest classifier
-# clf_rf = RandomForestClassifier(n_estimators=100)
-#
-# # perform training
-# clf_rf.fit(X_train, y_train)
-#
-# # predicton on test using all features
-# y_pred_rf = clf_rf.predict(X_test)
-# y_pred_score = clf_rf.predict_proba(X_test)
-#
-# print("Classification Report for DT Entropy: ")
-# print(classification_report(y_test,y_pred_rf))
-# print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
-#
-# #Applying SVM Classification
-# # perform training
-# # creating the classifier object
-# clf = SVC(kernel="linear")
-#
-# # performing training
-# clf.fit(X_train, y_train)
-#
-# # predicton on test
-# y_pred_svm = clf.predict(X_test)
-#
-# # calculate metrics
+# =================================================================
+# Modeling
+# =================================================================
+
+#Spliting and encoding data
+#split the dataset into input and target variables
+
+X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month']]  #
+y = merged_inner.loc[:,['New_status']]
+
+scaler = MinMaxScaler()
+X.loc[:,['runtime','averageRating','budget']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget']])
+
+# encloding the class with sklearn's LabelEncoder
+le = LabelEncoder()
+
+
+# Decision Tree Gini
+
+# fit and transform the class
+y = le.fit_transform(y)
+X = pd.get_dummies(X)
+
+# split the dataset into train and test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=100, stratify=y)
+
+# perform training with giniIndex.
+# creating the classifier object
+clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
+
+# performing training
+clf_gini.fit(X_train, y_train)
+
+# predicton on test using gini
+y_pred_gini = clf_gini.predict(X_test)
+
+print("Classification Report For DT Gini: ")
+print(classification_report(y_test,y_pred_gini))
+print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
+
+#Decision Tree Entropy
+# perform training with Entropy.
+# creating the classifier object
+clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
+
+# performing training
+clf_entropy.fit(X_train, y_train)
+
+# predicton on test using gini
+y_pred_entropy = clf_entropy.predict(X_test)
+
+print("Classification Report for DT Entropy: ")
+print(classification_report(y_test,y_pred_entropy.ravel()))
+print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
+
+
+#Random Forest
+# specify random forest classifier
+clf_rf = RandomForestClassifier(n_estimators=100)
+
+# perform training
+clf_rf.fit(X_train, y_train)
+
+# predicton on test using all features
+y_pred_rf = clf_rf.predict(X_test)
+y_pred_score = clf_rf.predict_proba(X_test)
+
+print("Classification Report for DT Entropy: ")
+print(classification_report(y_test,y_pred_rf))
+print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
+
+#Applying SVM Classification
+# perform training
+# creating the classifier object
+clf = SVC(kernel="linear")
+
+# performing training
+clf.fit(X_train, y_train)
+
+# predicton on test
+y_pred_svm = clf.predict(X_test)
+
+# calculate metrics
+print("\n")
+
+print("Classification Report for SVM:")
+print(classification_report(y_test,y_pred_svm))
+print("\n")
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
+print("\n")
+
+#KNN
+# standardize the data
+stdsc = StandardScaler()
+
+stdsc.fit(X_train)
+
+X_train_std = stdsc.transform(X_train)
+X_test_std = stdsc.transform(X_test)
+
+# perform training
+# creating the classifier object
+clf_knn = KNeighborsClassifier(n_neighbors=3)
+
+# performing training
+clf_knn.fit(X_train_std, y_train)
+
+#%%-----------------------------------------------------------------------
+# make predictions
+
+# predicton on test
+y_pred_knn = clf.predict(X_test_std)
+
+#%%-----------------------------------------------------------------------
+# calculate metrics
+
+print("\n")
+print("Classification Report for KNN: ")
+print(classification_report(y_test,y_pred_knn))
+print("\n")
+
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
+print("\n")
+
+#Naive Bayese
+# creating the classifier object
+clf_nb = GaussianNB()
+
+# performing training
+clf_nb.fit(X_train, y_train)
+
+#%%-----------------------------------------------------------------------
+# make predictions
+
+# predicton on test
+y_pred_nb = clf_nb.predict(X_test)
+
+y_pred_nb_score = clf_nb.predict_proba(X_test)
+
+#%%-----------------------------------------------------------------------
+# calculate metrics
+
+print("\n")
+
+print("Classification Report for NB: ")
+print(classification_report(y_test,y_pred_nb))
+print("\n")
+
+
+print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
+print("\n")
+
+# print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
 # print("\n")
-#
-# print("Classification Report for SVM:")
-# print(classification_report(y_test,y_pred_svm))
-# print("\n")
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_svm) * 100)
-# print("\n")
-#
-# #KNN
-# # standardize the data
-# stdsc = StandardScaler()
-#
-# stdsc.fit(X_train)
-#
-# X_train_std = stdsc.transform(X_train)
-# X_test_std = stdsc.transform(X_test)
-#
-# # perform training
-# # creating the classifier object
-# clf_knn = KNeighborsClassifier(n_neighbors=3)
-#
-# # performing training
-# clf_knn.fit(X_train_std, y_train)
-#
-# #%%-----------------------------------------------------------------------
-# # make predictions
-#
-# # predicton on test
-# y_pred_knn = clf.predict(X_test_std)
-#
-# #%%-----------------------------------------------------------------------
-# # calculate metrics
-#
-# print("\n")
-# print("Classification Report for KNN: ")
-# print(classification_report(y_test,y_pred_knn))
-# print("\n")
-#
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_knn) * 100)
-# print("\n")
-#
-# #Naive Bayese
-# # creating the classifier object
-# clf_nb = GaussianNB()
-#
-# # performing training
-# clf_nb.fit(X_train, y_train)
-#
-# #%%-----------------------------------------------------------------------
-# # make predictions
-#
-# # predicton on test
-# y_pred_nb = clf_nb.predict(X_test)
-#
-# y_pred_nb_score = clf_nb.predict_proba(X_test)
-#
-# #%%-----------------------------------------------------------------------
-# # calculate metrics
-#
-# print("\n")
-#
-# print("Classification Report for NB: ")
-# print(classification_report(y_test,y_pred_nb))
-# print("\n")
-#
-#
-# print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
-# print("\n")
-#
-# # print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
-# # print("\n")
-#
-# #Ensembling
-# final_pred = np.array([])
-# for i in range(0,len(X_test)):
-#     final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
-#
-# print("*"*50)
-# print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
-# print("Accuracy DT Entropy: ", accuracy_score(y_test, y_pred_entropy) * 100)
-# print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
-# print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
-# print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
-# print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
-# print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
-#
-# print(y_pred_score)
-# print("*"*50)
+
+#Ensembling
+final_pred = np.array([])
+for i in range(0,len(X_test)):
+    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
+
+print("*"*50)
+print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
+print("Accuracy DT Entropy: ", accuracy_score(y_test, y_pred_entropy) * 100)
+print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
+print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
+print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
+print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
+print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
+
+print(y_pred_score)
+print("*"*50)
 
 
 # =================================================================
