@@ -7,12 +7,14 @@ from scipy.stats import shapiro
 
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split # Import train_test_split function
+from imblearn.over_sampling import RandomOverSampler #For over sampling
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
@@ -52,12 +54,11 @@ import webbrowser
 
 # reading csv file data
 import pandas as pd
-movie_data_orig = pd.read_csv('movies_metadata.csv')
+movie_data_orig = pd.read_csv(r'C:\Users\Madhuri Yadav\PycharmProjects\Final-Project-Group8\Code\movies_metadata.csv')
 # print(movie_data_orig)     # [45466 rows x 24 columns]
 
-# removing 12 irrelevant columns
-df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "original_language",
-                                   "original_title", "overview", "poster_path", "production_countries",
+# removing 10 irrelevant columns
+df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "original_title", "overview", "poster_path", "production_countries",
                                    "spoken_languages", "status", "tagline", "video" ], axis=1)
 
 # print(df_cleaned.columns)   #  'budget', 'genres', 'id', 'imdb_id' 'popularity', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count']
@@ -84,7 +85,7 @@ df_cleaned = df_cleaned.loc[(df_cleaned['vote_count'] > 100) & df_cleaned["vote_
 # rearranging columns of dataframe
 cols = df_cleaned.columns.tolist()
 # Setting Genre as last col for easier manipulation
-cols = ['budget', 'id', 'imdb_id', 'popularity', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'genres']
+cols = ['budget', 'id', 'imdb_id', 'popularity', 'original_language', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'genres']
 df_cleaned = df_cleaned[cols]
 
 # converting (genre) json column to normal string column
@@ -94,18 +95,19 @@ df_cleaned['genres'] = pd.DataFrame(df_cleaned['genres'].apply(eval))
 # dividing all genres in a cell into separate cols/series, concating it to main df & then dropping the original "genres" column from df
 df_cleaned = pd.concat([df_cleaned.drop(['genres'], axis=1), df_cleaned['genres'].apply(pd.Series)], axis=1)
 # Removing all columns except the major genre type for each movie
-df_cleaned.drop(df_cleaned.iloc[:, 14:], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 15:], inplace = True, axis = 1)
 # creating separate series for "id" & "name" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
-df_cleaned.drop(df_cleaned.iloc[:, 13:15], inplace = True, axis = 1)     # dropping extraneous cols
+df_cleaned.drop(df_cleaned.iloc[:, 14:16], inplace = True, axis = 1)     # dropping extraneous cols
 df_cleaned.rename(columns = {'name' : 'Genre'}, inplace = True)   # renaming col
 df_cleaned = df_cleaned[~df_cleaned['Genre'].isnull()] # removing null containing rows
+
 
 
 # rearranging columns of dataframe
 cols = df_cleaned.columns.tolist()
 # Setting Production_companies as last col for easier manipulation
-cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'Genre', 'production_companies']
+cols = ['budget', 'imdb_id', 'popularity', 'original_language', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'Genre', 'production_companies']
 df_cleaned = df_cleaned[cols]
 
 # converting (production_companies) json column to normal string column
@@ -116,60 +118,51 @@ df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_compani
 # Dividing all production companies into separate cols, concatenating these to the main df and dropping the original 'production companies' col
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
 # Removing all production companies cols except major production company
-df_cleaned.drop(df_cleaned.iloc[:, 13:], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 14:], inplace = True, axis = 1)
 # creating separate series for "name" & "id" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 # dropping unnecessary cols
-df_cleaned.drop(df_cleaned.iloc[:, 12:14], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 13:15], inplace = True, axis = 1)
 # renaming newly created col
 df_cleaned.rename(columns = {'name' : 'Production_Company'}, inplace = True)
 df_cleaned = df_cleaned[~df_cleaned['Production_Company'].isnull()]
 len(df_cleaned.Production_Company.unique())
 
+
 # Adding Director col using imdb files
-dir_id_imdb = pd.read_csv('title_crew.tsv', sep='\t')
+dir_id_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\PycharmProjects\Final-Project-Group8\Code\title_crew.tsv', sep='\t')
 merged_inner = pd.merge(left=df_cleaned,right=dir_id_imdb, left_on='imdb_id', right_on='tconst')
-dir_name_imdb = pd.read_csv('name_basics.tsv', sep='\t')
+dir_name_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\PycharmProjects\Final-Project-Group8\Code\name_basics.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=dir_name_imdb, left_on='directors', right_on='nconst')
 merged_inner = merged_inner.drop(["tconst", "directors", "nconst"], axis=1)     # removing irrelevant cols
 merged_inner.rename(columns = {'primaryName' : 'Director'}, inplace = True)
 
 
 # Adding Avg_ratings & Total votes cols using imdb files
-ratings_imdb = pd.read_csv('title_ratings.tsv', sep='\t')
+ratings_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\PycharmProjects\Final-Project-Group8\Code\title_ratings.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=ratings_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst", "vote_average", "vote_count"], axis=1)     # removing old vote_avg/count cols
 
 # Adding Movie release year column from imdb file
-releaseYr_imdb = pd.read_csv('title_year.tsv', sep='\t')
+releaseYr_imdb = pd.read_csv(r'C:\Users\Madhuri Yadav\PycharmProjects\Final-Project-Group8\Code\title_year.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=releaseYr_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst"], axis=1)
 cols = merged_inner.columns.tolist()
+
+#Extracting Month from release date
+merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
+merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
+#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
+merged_inner['release_month'] = merged_inner['release_month'].astype('category')
+print(merged_inner.dtypes)
+merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
+
 # Setting StartYear col beside release_date col
-cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'revenue', 'runtime', 'title', 'status', 'New_status', 'Genre', 'Production_Company', 'Director', 'averageRating', 'numVotes']
+cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'release_month', 'revenue', 'runtime', 'title', 'Genre', 'Production_Company', 'Director', 'averageRating', 'numVotes', 'original_language','status', 'New_status',]
 merged_inner = merged_inner[cols]
 merged_inner["startYear"].min()
 
 len(merged_inner.Director.unique())     # 1173
-
-
-
-
-
-# Madhuri start
-
-
-# #Extracting Month from release date
-# df_cleaned['release_date_temp'] = pd.to_datetime(df_cleaned['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-# df_cleaned['release_month'] = pd.to_datetime(df_cleaned['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
-# #df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-# df_cleaned['release_month'] = df_cleaned['release_month'].astype('category')
-# print(df_cleaned.dtypes)
-#
-# df_cleaned = df_cleaned.drop(['release_date_temp'], axis=1)
-
-
-# Madhuri end
 
 
 # finding missing values
@@ -178,15 +171,6 @@ len(merged_inner.Director.unique())     # 1173
 merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
 merged_inner['release_date'] =  pd.to_datetime(merged_inner['release_date'])    # converting release_date to datetime object
 merged_inner['startYear'] = merged_inner['startYear'].astype(str).astype(int)     # converting startYear to int instead of object
-
-#Extracting Month from release date
-merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
-#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-merged_inner['release_month'] = merged_inner['release_month'].astype('category')
-print(merged_inner.dtypes)
-
-merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
 
 len(merged_inner)    # 2222
 
@@ -283,7 +267,7 @@ plt.show()
 
 
 # Correlation heatmap bw numerical cols
-num_cols = merged_inner[['budget', 'startYear', 'revenue', 'runtime', 'status', 'averageRating', 'numVotes']]
+num_cols = merged_inner[['budget', 'startYear', 'revenue', 'runtime', 'popularity', 'averageRating', 'numVotes','status']]
 # removing redundant upper half of heat map
 mask = np.zeros(num_cols.corr().shape, dtype=bool)
 mask[np.triu_indices(len(mask))] = True
@@ -305,28 +289,33 @@ plt.show()
 # Modeling
 # =================================================================
 
-#Spliting and encoding data
-#split the dataset into input and target variables
+# Spliting and encoding data
+# split the dataset into input and target variables
 
-X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month']]  #
+X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month', 'popularity']]  #
 y = merged_inner.loc[:,['New_status']]
 
 scaler = MinMaxScaler()
-X.loc[:,['runtime','averageRating','budget']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget']])
+X.loc[:,['runtime','averageRating','budget', 'popularity']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget', 'popularity']])
 
 # encloding the class with sklearn's LabelEncoder
 le = LabelEncoder()
-
-
-# Decision Tree Gini
-
 # fit and transform the class
 y = le.fit_transform(y)
 X = pd.get_dummies(X)
 
+print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
+# Over sampling
+# RandomOverSampler (with random_state=0)
+ros = RandomOverSampler(random_state=0)
+X, y = ros.fit_sample(X, y)
+
+print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
+
 # split the dataset into train and test
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=100, stratify=y)
 
+# Decision Tree Gini
 # perform training with giniIndex.
 # creating the classifier object
 clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
@@ -371,6 +360,19 @@ y_pred_score = clf_rf.predict_proba(X_test)
 print("Classification Report for DT Entropy: ")
 print(classification_report(y_test,y_pred_rf))
 print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
+
+#Applying ADA Boosting
+classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=10),n_estimators=100)
+classifier.fit(X_train, y_train)
+
+# predicton on test using all features
+y_pred_boost = classifier.predict(X_test)
+y_pred_score = classifier.predict_proba(X_test)
+
+print("Classification Report for boosting: ")
+print(classification_report(y_test,y_pred_boost))
+print("Accuracy : ", accuracy_score(y_test, y_pred_boost) * 100)
+
 
 #Applying SVM Classification
 # perform training
@@ -461,7 +463,7 @@ print("\n")
 #Ensembling
 final_pred = np.array([])
 for i in range(0,len(X_test)):
-    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
+    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_gini[i], y_pred_entropy[i]]))
 
 print("*"*50)
 print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
@@ -471,8 +473,7 @@ print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
 print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
 print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
 print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
-
-print(y_pred_score)
+print("Accuracy ADA: ", accuracy_score(y_test, y_pred_boost) * 100)
 print("*"*50)
 
 
