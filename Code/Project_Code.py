@@ -7,15 +7,19 @@ from scipy.stats import shapiro
 
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split # Import train_test_split function
-from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
+from imblearn.over_sampling import RandomOverSampler #For over sampling
+from sklearn import metrics
+import sklearn.metrics as metrics #Import scikit-learn metrics module for accuracy calculation
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
+from sklearn.metrics.classification import cohen_kappa_score
 from statistics import mode
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
@@ -23,14 +27,15 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import label_binarize
+
 # Libraries to display decision tree
 from pydotplus import graph_from_dot_data
 from sklearn.tree import export_graphviz
 import webbrowser
 
 # #%%-----------------------------------------------------------------------
-import os
-os.environ["PATH"] += os.pathsep + '/Users/amnagul/anaconda3/pkgs/graphviz-2.40.1-hefbbd9a_2/bin/'
+# import os
+# os.environ["PATH"] += os.pathsep + '/Graphviz2.38/bin'
 # #%%-----------------------------------------------------------------------
 
 # Libraries for GUI
@@ -48,11 +53,12 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
+#set seed
+seed = 100
 
 
-# removing 12 irrelevant columns
-df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "original_language",
-                                   "original_title", "overview", "poster_path", "production_countries",
+# removing 10 irrelevant columns
+df_cleaned = movie_data_orig.drop(["adult", "belongs_to_collection", "homepage", "original_title", "overview", "poster_path", "production_countries",
                                    "spoken_languages", "status", "tagline", "video" ], axis=1)
 
 # print(df_cleaned.columns)   #  'budget', 'genres', 'id', 'imdb_id' 'popularity', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count']
@@ -79,7 +85,7 @@ df_cleaned = df_cleaned.loc[(df_cleaned['vote_count'] > 100) & df_cleaned["vote_
 # rearranging columns of dataframe
 cols = df_cleaned.columns.tolist()
 # Setting Genre as last col for easier manipulation
-cols = ['budget', 'id', 'imdb_id', 'popularity', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'genres']
+cols = ['budget', 'id', 'imdb_id', 'popularity', 'original_language', 'production_companies', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'genres']
 df_cleaned = df_cleaned[cols]
 
 # converting (genre) json column to normal string column
@@ -89,18 +95,19 @@ df_cleaned['genres'] = pd.DataFrame(df_cleaned['genres'].apply(eval))
 # dividing all genres in a cell into separate cols/series, concating it to main df & then dropping the original "genres" column from df
 df_cleaned = pd.concat([df_cleaned.drop(['genres'], axis=1), df_cleaned['genres'].apply(pd.Series)], axis=1)
 # Removing all columns except the major genre type for each movie
-df_cleaned.drop(df_cleaned.iloc[:, 14:], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 15:], inplace = True, axis = 1)
 # creating separate series for "id" & "name" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
-df_cleaned.drop(df_cleaned.iloc[:, 13:15], inplace = True, axis = 1)     # dropping extraneous cols
+df_cleaned.drop(df_cleaned.iloc[:, 14:16], inplace = True, axis = 1)     # dropping extraneous cols
 df_cleaned.rename(columns = {'name' : 'Genre'}, inplace = True)   # renaming col
 df_cleaned = df_cleaned[~df_cleaned['Genre'].isnull()] # removing null containing rows
+
 
 
 # rearranging columns of dataframe
 cols = df_cleaned.columns.tolist()
 # Setting Production_companies as last col for easier manipulation
-cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'Genre', 'production_companies']
+cols = ['budget', 'imdb_id', 'popularity', 'original_language', 'release_date', 'revenue', 'runtime', 'title', 'vote_average', 'vote_count', 'status', 'New_status', 'Genre', 'production_companies']
 df_cleaned = df_cleaned[cols]
 
 # converting (production_companies) json column to normal string column
@@ -111,15 +118,16 @@ df_cleaned['production_companies'] = pd.DataFrame(df_cleaned['production_compani
 # Dividing all production companies into separate cols, concatenating these to the main df and dropping the original 'production companies' col
 df_cleaned = pd.concat([df_cleaned.drop(['production_companies'], axis=1), df_cleaned['production_companies'].apply(pd.Series)], axis=1)
 # Removing all production companies cols except major production company
-df_cleaned.drop(df_cleaned.iloc[:, 13:], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 14:], inplace = True, axis = 1)
 # creating separate series for "name" & "id" and concating it to main df
 df_cleaned = pd.concat([df_cleaned.drop([0], axis=1), df_cleaned[0].apply(pd.Series)], axis=1)
 # dropping unnecessary cols
-df_cleaned.drop(df_cleaned.iloc[:, 12:14], inplace = True, axis = 1)
+df_cleaned.drop(df_cleaned.iloc[:, 13:15], inplace = True, axis = 1)
 # renaming newly created col
 df_cleaned.rename(columns = {'name' : 'Production_Company'}, inplace = True)
 df_cleaned = df_cleaned[~df_cleaned['Production_Company'].isnull()]
 len(df_cleaned.Production_Company.unique())
+
 
 # Adding Director col using imdb files
 dir_id_imdb = pd.read_csv('title_crew.tsv', sep='\t')
@@ -140,31 +148,21 @@ releaseYr_imdb = pd.read_csv('title_year.tsv', sep='\t')
 merged_inner = pd.merge(left=merged_inner,right=releaseYr_imdb, left_on='imdb_id', right_on='tconst')
 merged_inner = merged_inner.drop(["tconst"], axis=1)
 cols = merged_inner.columns.tolist()
+
+#Extracting Month from release date
+merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
+merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
+#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
+merged_inner['release_month'] = merged_inner['release_month'].astype('category')
+print(merged_inner.dtypes)
+merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
+
 # Setting StartYear col beside release_date col
-cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'revenue', 'runtime', 'title', 'status', 'New_status', 'Genre', 'Production_Company', 'Director', 'averageRating', 'numVotes']
+cols = ['budget', 'imdb_id', 'popularity', 'release_date', 'startYear', 'release_month', 'revenue', 'runtime', 'title', 'Genre', 'Production_Company', 'Director', 'averageRating', 'numVotes', 'original_language','status', 'New_status',]
 merged_inner = merged_inner[cols]
 merged_inner["startYear"].min()
 
 len(merged_inner.Director.unique())     # 1173
-
-
-
-
-
-# Madhuri start
-
-
-# #Extracting Month from release date
-# df_cleaned['release_date_temp'] = pd.to_datetime(df_cleaned['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-# df_cleaned['release_month'] = pd.to_datetime(df_cleaned['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
-# #df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-# df_cleaned['release_month'] = df_cleaned['release_month'].astype('category')
-# print(df_cleaned.dtypes)
-#
-# df_cleaned = df_cleaned.drop(['release_date_temp'], axis=1)
-
-
-# Madhuri end
 
 
 # finding missing values
@@ -173,15 +171,6 @@ len(merged_inner.Director.unique())     # 1173
 merged_inner.dtypes       # release_date is of object (i.e. string data type) instead of datetime
 merged_inner['release_date'] =  pd.to_datetime(merged_inner['release_date'])    # converting release_date to datetime object
 merged_inner['startYear'] = merged_inner['startYear'].astype(str).astype(int)     # converting startYear to int instead of object
-
-#Extracting Month from release date
-merged_inner['release_date_temp'] = pd.to_datetime(merged_inner['release_date'],format='%Y-%m-%d', errors='coerce')  #Converting string to datetime
-merged_inner['release_month'] = pd.to_datetime(merged_inner['release_date_temp']).dt.month #extracting month from datetime(Releasedate) column
-#df_cleaned['release_month'] = pd.to_numeric(df_cleaned['release_month'],errors='coerce') #converting float to int
-merged_inner['release_month'] = merged_inner['release_month'].astype('category')
-print(merged_inner.dtypes)
-
-merged_inner = merged_inner.drop(['release_date_temp'], axis=1)
 
 len(merged_inner)    # 2222
 
@@ -278,7 +267,7 @@ plt.show()
 
 
 # Correlation heatmap bw numerical cols
-num_cols = merged_inner[['budget', 'startYear', 'revenue', 'runtime', 'status', 'averageRating', 'numVotes']]
+num_cols = merged_inner[['budget', 'startYear', 'revenue', 'runtime', 'popularity', 'averageRating', 'numVotes','status']]
 # removing redundant upper half of heat map
 mask = np.zeros(num_cols.corr().shape, dtype=bool)
 mask[np.triu_indices(len(mask))] = True
@@ -300,31 +289,41 @@ plt.show()
 # Modeling
 # =================================================================
 
-#Spliting and encoding data
-#split the dataset into input and target variables
+# Spliting and encoding data
+# split the dataset into input and target variables
 
-X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month']]  #
+X = merged_inner.loc[:,['runtime','averageRating','budget','Genre','Production_Company','release_month', 'popularity']]  #
 y = merged_inner.loc[:,['New_status']]
 
 scaler = MinMaxScaler()
-X.loc[:,['runtime','averageRating','budget']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget']])
+X.loc[:,['runtime','averageRating','budget', 'popularity']]= scaler.fit_transform(X.loc[:,['runtime','averageRating','budget', 'popularity']])
 
 # encloding the class with sklearn's LabelEncoder
 le = LabelEncoder()
-
-
-# Decision Tree Gini
-
 # fit and transform the class
 y = le.fit_transform(y)
 X = pd.get_dummies(X)
 
-# split the dataset into train and test
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=100, stratify=y)
+print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
+# Over sampling
+# RandomOverSampler (with random_state=0)
+ros = RandomOverSampler(random_state=0)
+X, y = ros.fit_sample(X, y)
 
+print(pd.DataFrame(data=y, columns=['New_status'])['New_status'].value_counts())
+
+# split the dataset into train and test
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=seed, stratify=y)
+# print("X train: ", len(X_train))
+# print("y train: ", len(y_train))
+# print("X test: ", len(X_test))
+# print("y test: ", len(y_train))
+
+
+# Decision Tree Gini
 # perform training with giniIndex.
 # creating the classifier object
-clf_gini = DecisionTreeClassifier(criterion="gini", random_state=100, min_samples_leaf=5)
+clf_gini = DecisionTreeClassifier(criterion="gini", random_state=seed, min_samples_leaf=5)
 
 # performing training
 clf_gini.fit(X_train, y_train)
@@ -339,7 +338,7 @@ print("Accuracy : ", accuracy_score(y_test, y_pred_gini.ravel()) * 100)
 #Decision Tree Entropy
 # perform training with Entropy.
 # creating the classifier object
-clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=100, min_samples_leaf=5)
+clf_entropy = DecisionTreeClassifier(criterion="entropy", random_state=seed, min_samples_leaf=5)
 
 # performing training
 clf_entropy.fit(X_train, y_train)
@@ -354,7 +353,7 @@ print("Accuracy : ", accuracy_score(y_test, y_pred_entropy) * 100)
 
 #Random Forest
 # specify random forest classifier
-clf_rf = RandomForestClassifier(n_estimators=100)
+clf_rf = RandomForestClassifier(n_estimators=100,random_state=seed)
 
 # perform training
 clf_rf.fit(X_train, y_train)
@@ -366,6 +365,18 @@ y_pred_score = clf_rf.predict_proba(X_test)
 print("Classification Report for DT Entropy: ")
 print(classification_report(y_test,y_pred_rf))
 print("Accuracy : ", accuracy_score(y_test, y_pred_rf) * 100)
+
+#Applying ADA Boosting
+classifier = AdaBoostClassifier(RandomForestClassifier(n_estimators=10,random_state=seed),n_estimators=100,random_state=seed)
+classifier.fit(X_train, y_train)
+
+# predicton on test using all features
+y_pred_boost = classifier.predict(X_test)
+
+print("Classification Report for boosting: ")
+print(classification_report(y_test,y_pred_boost))
+print("Accuracy : ", accuracy_score(y_test, y_pred_boost) * 100)
+
 
 #Applying SVM Classification
 # perform training
@@ -446,17 +457,13 @@ print("Classification Report for NB: ")
 print(classification_report(y_test,y_pred_nb))
 print("\n")
 
-
 print("Accuracy : ", accuracy_score(y_test, y_pred_nb) * 100)
 print("\n")
-
-# print("ROC_AUC : ", roc_auc_score(y_test,y_pred_nb_score[:,1]) * 100)
-# print("\n")
 
 #Ensembling
 final_pred = np.array([])
 for i in range(0,len(X_test)):
-    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_svm[i], y_pred_knn[i]]))
+    final_pred = np.append(final_pred, mode([y_pred_rf[i], y_pred_gini[i], y_pred_entropy[i]]))
 
 print("*"*50)
 print("Accuracy DT Gini : ", accuracy_score(y_test, y_pred_gini) * 100)
@@ -465,10 +472,50 @@ print("Accuracy SVM: ", accuracy_score(y_test, y_pred_svm) * 100)
 print("Accuracy RF: ", accuracy_score(y_test, y_pred_rf) * 100)
 print("Accuracy KNN: ", accuracy_score(y_test, y_pred_knn) * 100)
 print("Accuracy NB: ", accuracy_score(y_test, y_pred_nb) * 100)
-print("Accuracy final: ", accuracy_score(y_test, final_pred) * 100)
-
-print(y_pred_score)
+print("Accuracy Bagging with Mode method: ", accuracy_score(y_test, final_pred) * 100)
+print("Accuracy ADA: ", accuracy_score(y_test, y_pred_boost) * 100)
 print("*"*50)
+
+#Printing results for our best model
+print("ROC_AUC : ", roc_auc_score(y_test, y_pred_boost) * 100)
+print("Accuracy K: ", cohen_kappa_score(y_test, y_pred_boost)* 100)
+
+# ROC Graph
+y_pred_score = classifier.predict_proba(X_test)
+preds = y_pred_score[:,1]
+fpr, tpr, threshold = metrics.roc_curve(y_test, preds)
+roc_auc = metrics.auc(fpr, tpr)
+
+# method I: plt
+import matplotlib.pyplot as plt
+plt.title('Receiver Operating Characteristic')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+# confusion matrix for AdaBoosting
+conf_matrix = confusion_matrix(y_test, y_pred_boost)
+class_names = merged_inner['New_status'].unique()
+
+df_cm = pd.DataFrame(conf_matrix, index=class_names, columns=class_names )
+
+plt.figure(figsize=(5,5))
+
+hm = sns.heatmap(df_cm, cbar=False, annot=True, square=True, fmt='d', annot_kws={'size': 20}, yticklabels=df_cm.columns, xticklabels=df_cm.columns)
+
+hm.yaxis.set_ticklabels(hm.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=20)
+hm.xaxis.set_ticklabels(hm.xaxis.get_ticklabels(), rotation=0, ha='right', fontsize=20)
+print("aaa")
+plt.ylabel('True label',fontsize=20)
+plt.xlabel('Predicted label',fontsize=20)
+plt.title("Confusion Metrix AdaBoost Model")
+plt.tight_layout()
+plt.show()
 
 
 # =================================================================
