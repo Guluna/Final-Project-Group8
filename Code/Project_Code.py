@@ -228,29 +228,41 @@ merged_inner.drop_duplicates(inplace = True)     # no duplicates btw
 #
 #
 # # 2. independent variable Runtime
-# ax = sns.distplot(merged_inner["runtime"])
+# ax = sns.distplot(merged_inner['runtime'], kde=False, rug=False);
 # ax.set(xlabel ='Duration in Minutes', ylabel ='Frequency')
 # plt.title("Movie Runtime",fontsize=20)
 # plt.show()
 #
 #
 # # 3. independent variable Vote Average
-# ax = sns.distplot(merged_inner["averageRating"])
-# ax.set(xlabel ='Average Rating of a movie', ylabel ='Frequency')
+# ax = sns.distplot(merged_inner['averageRating'], kde=False, rug=False);
+# ax.set(xlabel ='Movie Rating', ylabel ='Frequency')
 # plt.title("Movie Rating",fontsize=20)
 # plt.show()
 #
 # max_rating_movie = merged_inner.loc[merged_inner['averageRating'] == 9.3]   # The Shawshank Redemption
 #
-# # 4. independent variable Vote Count
-# ax = sns.distplot(merged_inner["numVotes"])
+# # 4. independent variable Production Company
+# plt.figure(figsize=(20,12))
+# sns.countplot(merged_inner['Production_Company'], order=merged_inner.Production_Company.value_counts().iloc[:10].index)
+# plt.title("Top 10 Production companies",fontsize=20)
+# plt.show()
+#
+# # 5. independent variable release month
+# plt.figure(figsize=(20,12))
+# sns.countplot(merged_inner['release_month'].sort_values())
+# plt.title("Movies by Release month",fontsize=20)
+# plt.show()
+#
+# # 6. independent variable Vote Count
+# ax = sns.distplot(merged_inner["numVotes"], kde=False, rug=False)
 # ax.set(xlabel ='Vote Distribution', ylabel ='Frequency')
 # plt.title("Vote Count",fontsize=20)
 # plt.show()
 #
 # max_vote_movie = merged_inner.loc[merged_inner['numVotes'] == 2162821]   # The Shawshank Redemption
 #
-# # 5. Number of movies per Genre
+# # 7. Number of movies per Genre
 # # a = merged_inner["Genre"].unique()    # 18
 # ax = sns.countplot(merged_inner["Genre"])
 # ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
@@ -259,8 +271,8 @@ merged_inner.drop_duplicates(inplace = True)     # no duplicates btw
 # plt.show()
 #
 #
-# # 6. Movie Budget
-# ax = sns.distplot(merged_inner["budget"])
+# # 8. Movie Budget
+# ax = sns.distplot(merged_inner["budget"], kde=False, rug=False)
 # # ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
 # ax.set(xlabel ='Budget', ylabel ='Frequency')
 # xlabels = ['{:,.2f}'.format(x) + 'M' for x in ax.get_xticks()/1000000]
@@ -277,15 +289,7 @@ merged_inner.drop_duplicates(inplace = True)     # no duplicates btw
 # mask[np.triu_indices(len(mask))] = True
 # sns.heatmap(num_cols.corr(), annot=True, vmin = -1, vmax = 1, center = 0, cmap = 'coolwarm', mask = mask)
 # plt.show()
-#
-#
-#
-# #
-# # # Pair Plot
-# # df_x = df_cleaned[['budget','revenue','runtime','vote_average','vote_count','New_status']]
-# # sns.set(style = 'ticks')
-# # sns.pairplot(df_x, hue = 'New_status')
-# # plt.show()
+
 
 
 
